@@ -1,0 +1,89 @@
+#!/usr/bin/env python
+'''
+Analizador Lexicografico del Lenguaje Trinity
+Creado:26/09/14
+Ult.Mod:6/10/14
+Autores:
+	Carlo Polisano S. 0910672
+	Alejandro Guevara 0910971
+'''
+import sys
+import re
+from clsToken import Token
+
+def Lexer():
+	TokenList = [] # Lista de Tokens
+	for i in Token.__subclasses__():
+		TokenList.append(i)
+
+	Ignorar = re.compile(r"(?P<ESPACIO> )|(?P<TAB>\t)")
+
+	NumLinea = 1 # Contador Numero de linea
+	NumCol = 1 # Contador Numero de Columnas
+
+	# Abriendo Archivo
+	archivo = open(sys.argv[1], 'r')
+
+	buff = archivo.read() # Todo el archivo en un solo string
+
+	# Cerrando Archivo
+	archivo.close()
+
+	error=False
+	TknEncontrados=list()
+	ErrEncontrados=list()
+
+	# Leyendo
+	while len(buff)>0:
+		m = Ignorar.match(buff)
+		if m: # Encontre algo que debo ignorar
+			buff= buff[len(m.group(0)):] # Se lo quito al buff
+			NumCol = NumCol + len(m.group(0)) # Aumento NumCol
+			continue
+		
+		m = re.match(r'\n',buff)
+		if m: # Encontre un fin de linea
+			buff= buff[len(m.group(0)):] # Se lo quito al buff
+			NumLinea = NumLinea + 1
+			NumCol = 1
+			continue
+		
+		m = re.match(r'#',buff)
+		if m: # Encontre un comentario de linea
+			i = re.match(r'(.)*\n',buff) # Encuentro en final de la linea de comentarios
+			buff= buff[len(i.group(0)):] # Se lo quito al buff
+			NumLinea = NumLinea + 1
+			NumCol = 1
+			continue
+				
+		for tk in TokenList:
+			m = tk.ER.match(buff)
+			if m:
+				Newtk = tk(NumLinea,NumCol,m.group(0)) # Creo el Token
+				TknEncontrados.append(Newtk)
+				buff= buff[len(m.group(0)):] # Se lo quito al buff
+				NumCol = NumCol + len(m.group(0))
+				break
+		
+		if not m:# No encontro una expresion regular, Error Lexicografico
+			i = re.match(r'.',buff)
+			ErrEncontrados.append([i.group(0),NumLinea,NumCol])
+			buff= buff[len(i.group(0)):]
+			NumCol = NumCol + len(i.group(0))
+			error=True
+
+	for i in TknEncontrados:
+		print("{} en la fila {}, columna {}: {}".format(i.__class__.__name__,i.fila,i.col,i.code))
+	print 
+	for i in ErrEncontrados:
+		print("Error:{} encontrado en fila {} y columna {}".format(i[0],i[1],i[2]))
+
+	if not error:
+		Sintaxer(TknEncontrados)
+		return 0
+	else:
+		print("Ocurrio al menos un error Lexicografico. Deteniendo la ejecucion")
+		return 1
+
+if __name__ == '__main__':
+    print(Lexer())
