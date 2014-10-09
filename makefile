@@ -4,8 +4,8 @@
 # Autores:
 # 	Carlo Polisano S. 0910672
 #	Alejandro Guevara 0910971
-trinity: lexer
-	cp lexer trinity
+trinity: main
+	cp main trinity
 	chmod +x trinity
 clean:
-	rm trinity
+	rm trinity *.pyc

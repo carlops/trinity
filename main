@@ -1,0 +1,27 @@
+#!/usr/bin/env python
+'''
+Main del traductor del Lenguaje Trinity
+Creado:8/10/14
+Ult.Mod:8/10/14
+Autores:
+	Carlo Polisano S. 0910672
+	Alejandro Guevara 0910971
+'''
+import sys
+from lexer import PLYCompatLexer
+from parser import Sintaxer
+
+if __name__ == '__main__':
+	
+	archivo = open(sys.argv[1], 'r')
+
+	buff = archivo.read() # Todo el archivo en un solo string
+
+	# Cerrando Archivo
+	archivo.close()
+	
+	lx=PLYCompatLexer(buff)
+	
+	Sintaxer(lx)
+	
+	

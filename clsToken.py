@@ -10,9 +10,27 @@ import re
 
 class Token(object):
 	def __init__(self, fila, col, code):
-		self.fila = fila
-		self.col = col
-		self.code = code
+		self.type = self.__class__.__name__
+		self.value = code
+		self.lineno = fila
+		self.lexpos = col
+		
+#class Token(object):
+	#def __init__(self, fila, col, code):
+		#self.name = self.__class__.__name__
+		#self.fila = fila
+		#self.col = col
+		#self.code = code
+
+#class PLYCompatToken(object):
+	#def __init__(self, tk):
+		#self.type = 
+		#self.value = code
+		#self.lineno = fila
+		#self.lexpos = col
+	
+	def __repr__(self):
+		return "<Token: %r %r>" % (self.type, self.code)
 
 class TknUSE(Token):
 	ER=re.compile(r'use\b')
@@ -181,6 +199,7 @@ class TknLLAVESCIERRA(Token):
 
 class TknSTRING(Token):
 	ER=re.compile(r'".*?"')#non-greedy
+	#ER=re.compile('/"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"')#probar luego
 
 class TknCOMILLASIMPLE(Token):
 	ER=re.compile(r'\'')

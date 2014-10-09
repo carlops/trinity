@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 '''
 Analizador Lexicografico del Lenguaje Trinity
 Creado:26/09/14
@@ -7,11 +6,23 @@ Autores:
 	Carlo Polisano S. 0910672
 	Alejandro Guevara 0910971
 '''
-import sys
 import re
 from clsToken import Token
+#from clsToken import PLYCompatToken
 
-def Lexer():
+class PLYCompatLexer(object):
+	def __init__(self, text):
+		self.text = text
+		self.token_stream = iter(Lexer(text))
+	
+	def token(self):
+		try:
+			#return PLYCompatToken(self.token_stream.next())
+			return self.token_stream.next()
+		except StopIteration:
+			return None
+
+def Lexer(text):
 	TokenList = [] # Lista de Tokens
 	for i in Token.__subclasses__():
 		TokenList.append(i)
@@ -21,69 +32,69 @@ def Lexer():
 	NumLinea = 1 # Contador Numero de linea
 	NumCol = 1 # Contador Numero de Columnas
 
-	# Abriendo Archivo
-	archivo = open(sys.argv[1], 'r')
-
-	buff = archivo.read() # Todo el archivo en un solo string
-
-	# Cerrando Archivo
-	archivo.close()
-
 	error=False
 	TknEncontrados=list()
 	ErrEncontrados=list()
 
 	# Leyendo
-	while len(buff)>0:
-		m = Ignorar.match(buff)
+	while len(text)>0:
+		m = Ignorar.match(text)
 		if m: # Encontre algo que debo ignorar
-			buff= buff[len(m.group(0)):] # Se lo quito al buff
+			text= text[len(m.group(0)):] # Se lo quito al text
 			NumCol = NumCol + len(m.group(0)) # Aumento NumCol
 			continue
 		
-		m = re.match(r'\n',buff)
+		m = re.match(r'\n',text)
 		if m: # Encontre un fin de linea
-			buff= buff[len(m.group(0)):] # Se lo quito al buff
+			text= text[len(m.group(0)):] # Se lo quito al text
 			NumLinea = NumLinea + 1
 			NumCol = 1
 			continue
 		
-		m = re.match(r'#',buff)
+		m = re.match(r'#',text)
 		if m: # Encontre un comentario de linea
-			i = re.match(r'(.)*\n',buff) # Encuentro en final de la linea de comentarios
-			buff= buff[len(i.group(0)):] # Se lo quito al buff
+			i = re.match(r'(.)*\n',text) # Encuentro en final de la linea de comentarios
+			text= text[len(i.group(0)):] # Se lo quito al text
 			NumLinea = NumLinea + 1
 			NumCol = 1
 			continue
 				
 		for tk in TokenList:
-			m = tk.ER.match(buff)
+			m = tk.ER.match(text)
 			if m:
 				Newtk = tk(NumLinea,NumCol,m.group(0)) # Creo el Token
 				TknEncontrados.append(Newtk)
-				buff= buff[len(m.group(0)):] # Se lo quito al buff
+				text= text[len(m.group(0)):] # Se lo quito al text
 				NumCol = NumCol + len(m.group(0))
 				break
 		
 		if not m:# No encontro una expresion regular, Error Lexicografico
-			i = re.match(r'.',buff)
+			i = re.match(r'.',text)
 			ErrEncontrados.append([i.group(0),NumLinea,NumCol])
-			buff= buff[len(i.group(0)):]
+			text= text[len(i.group(0)):]
 			NumCol = NumCol + len(i.group(0))
 			error=True
 
 	for i in TknEncontrados:
-		print("{} en la fila {}, columna {}: {}".format(i.__class__.__name__,i.fila,i.col,i.code))
+		print("{} en la  {}, columna {}: {}".format(i.type,i.lineno,i.lexpos,i.value))
 	print 
 	for i in ErrEncontrados:
 		print("Error:{} encontrado en fila {} y columna {}".format(i[0],i[1],i[2]))
 
 	if not error:
-		Sintaxer(TknEncontrados)
-		return 0
+		return TknEncontrados
 	else:
 		print("Ocurrio al menos un error Lexicografico. Deteniendo la ejecucion")
-		return 1
+		return []
 
 if __name__ == '__main__':
-    print(Lexer())
+	
+	archivo = open(sys.argv[1], 'r')
+
+	text = archivo.read() # Todo el archivo en un solo string
+
+	# Cerrando Archivo
+	archivo.close()
+	
+	lx=PLYCompatLexer(text)
+    
