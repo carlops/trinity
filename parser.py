@@ -10,7 +10,7 @@ Autores:
 from clsToken import Token
 import ply.yacc as yacc
 
-def Sintaxer(tokens):
+def Sintaxer(tokens, textoPrograma):
 	
 ### EXPRESIONES 
 	def p_expression_TknSUMA(p):
@@ -32,10 +32,11 @@ def Sintaxer(tokens):
 	# The assign statement
 	# ID '=' expression
 	def p_statement_assing(p):
-		"expression : ID TknIGUAL expression"
+		"expression : TknID TknIGUAL expression"
 		p[0] = p[1]
 		
 	def p_error(p):
 		print ("Error" + p)
 	
 	yacc.yacc()
+	print yacc.parse(textoPrograma)

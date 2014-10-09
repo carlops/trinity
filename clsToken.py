@@ -30,7 +30,8 @@ class Token(object):
 		#self.lexpos = col
 	
 	def __repr__(self):
-		return "<Token: %r %r>" % (self.type, self.code)
+		return self.__class__.__name__
+		#return "<Token: %s %r %d %d>" % (self.type, self.value,self.lineno,self.lexpos)
 
 class TknUSE(Token):
 	ER=re.compile(r'use\b')

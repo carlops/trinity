@@ -13,7 +13,7 @@ from clsToken import Token
 class PLYCompatLexer(object):
 	def __init__(self, text):
 		self.text = text
-		self.token_stream = iter(Lexer(text))
+		self.token_stream = Lexer(text)
 	
 	def token(self):
 		try:

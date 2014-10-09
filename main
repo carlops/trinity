@@ -16,12 +16,13 @@ if __name__ == '__main__':
 	archivo = open(sys.argv[1], 'r')
 
 	buff = archivo.read() # Todo el archivo en un solo string
+	copia = buff
 
 	# Cerrando Archivo
 	archivo.close()
 	
 	lx=PLYCompatLexer(buff)
 	
-	Sintaxer(lx)
+	Sintaxer(lx.token_stream, copia)
 	
 	
