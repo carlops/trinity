@@ -8,4 +8,4 @@ trinity: main
 	cp main trinity
 	chmod +x trinity
 clean:
-	rm trinity *.pyc
+	rm trinity *.pyc *.out

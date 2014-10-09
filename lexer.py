@@ -13,14 +13,19 @@ from clsToken import Token
 class PLYCompatLexer(object):
 	def __init__(self, text):
 		self.text = text
-		self.token_stream = Lexer(text)
-	
+		self.token_stream = iter(Lexer(text))
+		#self.token_stream = Lexer(text)
+		
 	def token(self):
 		try:
 			#return PLYCompatToken(self.token_stream.next())
 			return self.token_stream.next()
+			#return self.token_stream
 		except StopIteration:
 			return None
+	
+	def input(self,text):
+		pass
 
 def Lexer(text):
 	TokenList = [] # Lista de Tokens
