@@ -7,7 +7,7 @@ Autores:
 	Alejandro Guevara 0910971
 '''
 import re
-from clsToken import Token
+from clsToken import *
 #from clsToken import PLYCompatToken
 
 class PLYCompatLexer(object):
@@ -19,16 +19,28 @@ class PLYCompatLexer(object):
 	def token(self):
 		try:
 			#return PLYCompatToken(self.token_stream.next())
-			return self.token_stream.next()
+			unToken = PLYCompatToken(self.token_stream.next())
+			print 'in token: ', unToken.type
+			return unToken
 			#return self.token_stream
 		except StopIteration:
 			return None
-	
-	def input(self,text):
-		pass
+		
+class PLYCompatToken:
+        def __init__(self, token):
+            self.type = token.type
+            self.value = token.value
+            self.lineno = token.lineno
+            self.lexpos = token.lexpos
+	#def input(self,text):
+		#pass
 
 def Lexer(text):
 	TokenList = [] # Lista de Tokens
+	#TokenList.append(t_NUMERO)
+	#TokenList.append(t_SUMA)
+	#TokenList.append(t_IGUAL)
+	#TokenList.append(t_ID)
 	for i in Token.__subclasses__():
 		TokenList.append(i)
 

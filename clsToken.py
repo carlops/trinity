@@ -16,258 +16,258 @@ class Token(object):
 		self.lexpos = col
 		
 #class Token(object):
-	#def __init__(self, fila, col, code):
+	#def __ini_(self, fila, col, code):
 		#self.name = self.__class__.__name__
 		#self.fila = fila
 		#self.col = col
 		#self.code = code
 
 #class PLYCompatToken(object):
-	#def __init__(self, tk):
+	#def __ini_(self, tk):
 		#self.type = 
 		#self.value = code
 		#self.lineno = fila
 		#self.lexpos = col
 	
-	def __repr__(self):
-		return self.__class__.__name__
-		return "<Token: %s %r %d %d>" % (self.type, self.value,self.lineno,self.lexpos)
+	#def __repr__(self):
+		#return self.__class__.__name__
+		#return "<Token: %s %r %d %d>" % (self.type, self.value,self.lineno,self.col)
 
-class t_USE(Token):
+class USE(Token):
 	ER=re.compile(r'use\b')
 	#r'use\b'
 
-class t_BEGIN(Token):
+class BEGIN(Token):
 	ER=re.compile(r'begin\b')
 	#r'begin\b'
 
-class t_IN(Token):
+class IN(Token):
 	ER=re.compile(r'in\b')
 	#r'in\b'
 
-class t_END(Token):
+class END(Token):
 	ER=re.compile(r'end\b')
 	#r'end\b'
 
-class t_FUNCTION(Token):
+class FUNCTION(Token):
 	ER=re.compile(r'function\b')
 	#r'function\b'
 
-class t_RETURN(Token):
+class RETURN(Token):
 	ER=re.compile(r'return\b')
 	#r'return\b'
 
-class t_IF(Token):
+class IF(Token):
 	ER=re.compile(r'if\b')
 	#r'if\b'
 
-class t_THEN(Token):
+class THEN(Token):
 	ER=re.compile(r'then\b')
 	#r'then\b'
 
-class t_FOR(Token):
+class FOR(Token):
 	ER=re.compile(r'for\b')
 	#r'for\b'
 
-class t_ELSE(Token):
+class ELSE(Token):
 	ER=re.compile(r'else\b')
 	#r'else\b'
 
-class t_DO(Token):
+class DO(Token):
 	ER=re.compile(r'do\b')
 	#r'do\b'
 
-class t_WHILE(Token):
+class WHILE(Token):
 	ER=re.compile(r'while\b')
 	#r'while\b'
 
-class t_NUMBER(Token):
+class NUMBER(Token):
 	ER=re.compile(r'number\b')
 	#r'number\b'
 
-class t_BOOLEAN(Token):
+class BOOLEAN(Token):
 	ER=re.compile(r'boolean\b')
 	#r'boolean\b'
 
-class t_TRUE(Token):
+class TRUE(Token):
 	ER=re.compile(r'true\b')
 	#r'true\b'
 
-class t_FALSE(Token):
+class FALSE(Token):
 	ER=re.compile(r'false\b')
 	#r'false\b'
 
-class t_MATRIX(Token):
+class MATRIX(Token):
 	ER=re.compile(r'matrix\b')
 	#r'matrix\b'
 
-class t_ROW(Token):
+class ROW(Token):
 	ER=re.compile(r'row\b')
 	#r'row\b'
 
-class t_COL(Token):
+class COL(Token):
 	ER=re.compile(r'col\b')
 	#r'col\b'
 
-class t_PRINT(Token):
+class PRINT(Token):
 	ER=re.compile(r'print\b')
 	#r'print\b'
 
-class t_SET(Token):
+class SET(Token):
 	ER=re.compile(r'set\b')
 	#r'set\b'
 
-class t_NOT(Token):
+class NOT(Token):
 	ER=re.compile(r'not\b')
 	#r'not\b'
 
-class t_MMOD(Token):
+class MMOD(Token):
 	ER=re.compile(r'\.mod\.')
 	#r'\.mod\.'
 
-class t_MDIV(Token):
+class MDIV(Token):
 	ER=re.compile(r'\.div\.')
 	#r'\.div\.'
 
-class t_MSUMA(Token):
+class MSUMA(Token):
 	ER=re.compile(r'\.\+\.')
 	#r'\.\+\.'
 
-class t_MMENOS(Token):
+class MMENOS(Token):
 	ER=re.compile(r'\.\-\.')
 	#r'\.\-\.'
 
-class t_MAST(Token):
+class MAST(Token):
 	ER=re.compile(r'\.\*\.')
 	#r'\.\*\.'
 
-class t_MSLASH(Token):
+class MSLASH(Token):
 	ER=re.compile(r'\./\.')
 	#r'\./\.'
 
-class t_MPORCENTAJE(Token):
+class MPORCENTAJE(Token):
 	ER=re.compile(r'\.%\.')
 	#r'\.%\.'
 
-class t_PUNTOYCOMA(Token):
+class PUNTOYCOMA(Token):
 	ER=re.compile(r';')
 	#r';'
 
-class t_DOSPUNTOS(Token):
+class DOSPUNTOS(Token):
 	ER=re.compile(r':')
 	#r':'
 
-class t_IGUAL2(Token):
+class IGUAL2(Token):
 	ER=re.compile(r'==')
 	#r'=='
 
-class t_DISTINTO(Token):
+class DISTINTO(Token):
 	ER=re.compile(r'/=')
 	#r'/='
 
-class t_MAYORIGUAL(Token):
+class MAYORIGUAL(Token):
 	ER=re.compile(r'>=')
 	#r'>='
 
-class t_MENORIGUAL(Token):
+class MENORIGUAL(Token):
 	ER=re.compile(r'<=')
 	#r'<='
 
-class t_MAYORQUE(Token):
+class MAYORQUE(Token):
 	ER=re.compile(r'>')
 	#r'>'
 
-class t_MENORQUE(Token):
+class MENORQUE(Token):
 	ER=re.compile(r'<')
 	#r'<'
 
-class t_IGUAL(Token):
+class IGUAL(Token):
 	ER=re.compile(r'=')
 	#r'='
 
-class t_PUNTO(Token):
+class PUNTO(Token):
 	ER=re.compile(r'\.')
 	#r'\.'
 
-class t_COMA(Token):
+class COMA(Token):
 	ER=re.compile(r'\,')
 	#r'\,'
 
-class t_DIV(Token):
+class DIV(Token):
 	ER=re.compile(r'div\b')
 	#r'div\b'
 
-class t_MOD(Token):
+class MOD(Token):
 	ER=re.compile(r'mod\b')
 	#r'mod\b'
 
-class t_SUMA(Token):
+class SUMA(Token):
 	ER=re.compile(r'\+')
 	#r'\+'
 
-class t_MENOS(Token):
+class MENOS(Token):
 	ER=re.compile(r'-\b')
 	#r'-\b'
 
-class t_AST(Token):
+class AST(Token):
 	ER=re.compile(r'\*')
 	#r'\*'
 
-class t_SLASH(Token):
+class SLASH(Token):
 	ER=re.compile(r'/')
 	#r'/'
 
-class t_AND(Token):
+class AND(Token):
 	ER=re.compile(r'&')
 	#r'&'
 
-class t_OR(Token):
+class OR(Token):
 	ER=re.compile(r'\|')
 	#r'\|'
 
-class t_PORCENTAJE(Token):
+class PORCENTAJE(Token):
 	ER=re.compile(r'%')
 	#r'%'
 
-class t_PARENTESISABRE(Token):
+class PARENTESISABRE(Token):
 	ER=re.compile(r'\(')
 	#r'\('
 
-class t_PARENTESISCIERRA(Token):
+class PARENTESISCIERRA(Token):
 	ER=re.compile(r'\)')
 	#r'\)'
 
-class t_CORCHETEABRE(Token):
+class CORCHETEABRE(Token):
 	ER=re.compile(r'\[')
 	#r'\['
 
-class t_CORCHETECIERRA(Token):
+class CORCHETECIERRA(Token):
 	ER=re.compile(r'\]')
 	#r'\]'
 
-class t_LLAVESABRE(Token):
+class LLAVESABRE(Token):
 	ER=re.compile(r'\{')
 	#r'\{'
 
-class t_LLAVESCIERRA(Token):
+class LLAVESCIERRA(Token):
 	ER=re.compile(r'\}')
 	#r'\}'
 
-class t_STRING(Token):
+class STRING(Token):
 	ER=re.compile(r'".*?"')
 	#r'".*?"'#non-greedy
 	#ER=re.compile('/"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"')
 	'/"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"'#probar luego
 
-class t_COMILLASIMPLE(Token):
+class COMILLASIMPLE(Token):
 	ER=re.compile(r'\'')
 	#r'\''
 
-class t_NUMERO(Token):
-	ER=re.compile(r'[-+]?(\d+(\.\d+)?)')
+class NUMERO(Token):
+	ER=re.compile(r'(\d+(\.\d+)?)')
 	#r'[-+]?(\d+(\.\d+)?)'
 
-class t_ID(Token):
+class ID(Token):
 	ER=re.compile(r'[A-Za-z]\w*')
 	#r'[A-Za-z]\w*'
 

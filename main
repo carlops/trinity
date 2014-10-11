@@ -23,6 +23,11 @@ if __name__ == '__main__':
 	
 	lx=PLYCompatLexer(buff)
 	
+	#lista = [
+		#('t_SUMA'),
+		#('t_NUMERO'),
+		#('t_IGUAL')
+		#]
 	lista=[
 	('USE'),
 	('BEGIN'),
