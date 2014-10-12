@@ -1,5 +1,7 @@
-a=3
-p=1+2
-q=4*5
-r=10/2
-arbol
+program 
+use
+	a;
+in
+	a=b;
+	c=2-2;
+end

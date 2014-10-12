@@ -11,14 +11,30 @@ from clsToken import Token
 import ply.yacc as yacc
 
 class Program:
-	def __init__(self,cuerpo)
+	def __init__(self,cuerpo):
 		self.cuerpo=cuerpo
-	
+
+class Statement:
+	pass
+
+class Bloque(Statement):
+	def __init__(self,declaraciones,instrucciones):
+		self.declaraciones=declaraciones
+		self.instrucciones=instrucciones
+		
+	def show(self,depth):
+		print(' '*depth+'USE:\n')
+		for i in declaraciones:
+			i.show(depth+1)
+		print(' '*depth+'IN:\n')
+		for j in instrucciones:
+			j.show(depth+1)
+		print(' '*depth+'END')
 
 class Expresion(object):
 	def __init__(self, hijos):
 		self.hijos = hijos
-
+	
 	def show(self, depth):
 		print('  '*depth + self.name + ':')
 		for i in self.hijos:
@@ -35,7 +51,7 @@ class OperacionBinaria(Expresion):
 		self.hijos['operando izquierdo'].show(depth+1)
 		print ('  '*depth + 'operando derecho:'+'  '*depth)
 		self.hijos['operando derecho'].show(depth+1)
-		
+	
 class Asignar(Expresion):
 	def __init__(self,variable,expresion):
 		self.hijos = {'variable': variable, 'expresion': expresion}
@@ -47,7 +63,6 @@ class Asignar(Expresion):
 		self.hijos['variable'].show(depth+1)
 		print ('  '*depth + 'lado derecho:'+'  '*depth)
 		self.hijos['expresion'].show(depth+1)
-
 
 # LITERALES!
 class LiteralNumerico(Expresion):
@@ -67,7 +82,6 @@ class Variable(Expresion):
 		self.valor = valor
 	def show(self, depth):
 		print('  '*depth + 'Variable:\n'+'  '*(depth+1) + 'nombre: '+str(self.valor))
-	
 
 def Sintaxer(lx, tokens, textoPrograma):
 	
@@ -79,14 +93,44 @@ def Sintaxer(lx, tokens, textoPrograma):
 	)
 	
 	def p_program(p):
-		"program : PROGRAM statement"
+		'program : PROGRAM statement'
 		p[0] = Program(p[2])
 	
 	### STATEMENTS
-	def p_statement_assing(p):
-		"expression : ID IGUAL expression"
+	def p_statement_block(p):
+		'statement : USE statement_decl_list IN statement_list END'
+		p[0]=Bloque(p[2],p[4])
+	
+	def p_statement_list(p):
+		'''statement : statement 
+					| statement PUNTOYCOMA statement'''
+		if len(p)==2:
+			p[0]=p[1]
+		else:
+			p[0]=p[1] + p[3]
+		
+	def p_statement_Assing(p):
+		'statement : ID IGUAL expression'
 		p[0] = Asignar(Variable(p[1]),p[3])
 	
+	
+	def p_statement_decl_list(p):
+		'''statement_decl_list : statement_decl
+							| statement_decl_list PUNTOYCOMA statement_decl'''
+		if len(p)==2:
+			p[0] = p[1]
+		else:
+			p[0] = p[1] + p[3]
+		
+	###### HAY QUE AGREGAR MATRIX(a,b)
+	def p_statement_NUMBER(p): 
+		'statement_decl : NUMBER ID'
+		p[0]= int(p[2]) ############### TAMBIEN PUEDE SER FLOAT!!
+		
+	def p_statement_BOOLEAN(p):
+		'statement_decl : BOOLEAN ID'
+		p[0]= bool(p[2])
+		
 	### EXPRESIONES 
 	def p_expression_SUMA(p):
 		'expression : expression SUMA expression'
@@ -139,6 +183,14 @@ def Sintaxer(lx, tokens, textoPrograma):
 					| expression MENORQUE expression"""
 		p[0] = OperacionBinaria(p,str(p[2]))
 		
+	def p_expression_OR(p):
+		'expression : expression OR expression'
+		p[0] = OperacionBinaria(p,'OR')
+	
+	def p_expression_AND(p):
+		'expression : expression AND expression'
+		p[0] = OperacionBinaria(p,'AND')
+	
 	def p_error(p):
 		print ("Error: {} de tipo {} encontrado en {},{}".format(p.value,p.type,p.lineno,p.lexpos))
 		print("ERROR")
@@ -169,7 +221,7 @@ def Sintaxer(lx, tokens, textoPrograma):
 		#("right", 'UMINUS'),
 	#)
 	
-	yacc.yacc()
+	yacc.yacc(start='program')
 	
 	#print yacc.parse(lexer=lx)
 	print yacc.parse(lexer=lx).show(0)
