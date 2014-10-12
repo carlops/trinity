@@ -20,7 +20,7 @@ class PLYCompatLexer(object):
 		try:
 			#return PLYCompatToken(self.token_stream.next())
 			unToken = PLYCompatToken(self.token_stream.next())
-			print 'in token: ', unToken.type
+			#print 'in token: ', unToken.type
 			return unToken
 			#return self.token_stream
 		except StopIteration:
@@ -37,10 +37,6 @@ class PLYCompatToken:
 
 def Lexer(text):
 	TokenList = [] # Lista de Tokens
-	#TokenList.append(t_NUMERO)
-	#TokenList.append(t_SUMA)
-	#TokenList.append(t_IGUAL)
-	#TokenList.append(t_ID)
 	for i in Token.__subclasses__():
 		TokenList.append(i)
 

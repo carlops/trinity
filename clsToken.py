@@ -33,6 +33,10 @@ class Token(object):
 		#return self.__class__.__name__
 		#return "<Token: %s %r %d %d>" % (self.type, self.value,self.lineno,self.col)
 
+class PROGRAM(Token):
+	ER=re.compile(r'program\b')
+	r'program\b'
+
 class USE(Token):
 	ER=re.compile(r'use\b')
 	#r'use\b'
@@ -206,7 +210,7 @@ class SUMA(Token):
 	#r'\+'
 
 class MENOS(Token):
-	ER=re.compile(r'-\b')
+	ER=re.compile(r'\-')
 	#r'-\b'
 
 class AST(Token):
