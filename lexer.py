@@ -88,15 +88,15 @@ def Lexer(text):
 			NumCol = NumCol + len(i.group(0))
 			error=True
 
-	for i in TknEncontrados:
-		print("{} en la  {}, columna {}: {}".format(i.type,i.lineno,i.lexpos,i.value))
-	print 
-	for i in ErrEncontrados:
-		print("Error:{} encontrado en fila {} y columna {}".format(i[0],i[1],i[2]))
+	#for i in TknEncontrados:
+		#print("{} en la  {}, columna {}: {}".format(i.type,i.lineno,i.lexpos,i.value))
+	#print 
 
 	if not error:
 		return TknEncontrados
 	else:
+		for i in ErrEncontrados:
+			print("Error:{} encontrado en fila {} y columna {}".format(i[0],i[1],i[2]))
 		print("Ocurrio al menos un error Lexicografico. Deteniendo la ejecucion")
 		return []
 

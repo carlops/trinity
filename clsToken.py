@@ -41,6 +41,9 @@ class USE(Token):
 	ER=re.compile(r'use\b')
 	#r'use\b'
 
+class READ(Token):
+	ER=re.compile(r'read\b')
+	
 class BEGIN(Token):
 	ER=re.compile(r'begin\b')
 	#r'begin\b'
@@ -189,10 +192,6 @@ class IGUAL(Token):
 	ER=re.compile(r'=')
 	#r'='
 
-class PUNTO(Token):
-	ER=re.compile(r'\.')
-	#r'\.'
-
 class COMA(Token):
 	ER=re.compile(r'\,')
 	#r'\,'
@@ -258,9 +257,9 @@ class LLAVESCIERRA(Token):
 	#r'\}'
 
 class STRING(Token):
-	ER=re.compile(r'".*?"')
+	#ER=re.compile(r'".*?"')
 	#r'".*?"'#non-greedy
-	#ER=re.compile('/"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"')
+	ER=re.compile(r'\"[^"\\\\]*(?:\\\\.[^"\\\\]*)*\"')
 	'/"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"'#probar luego
 
 class COMILLASIMPLE(Token):
