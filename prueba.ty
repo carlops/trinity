@@ -1,7 +1,8 @@
 program 
 use
-	a;
+	boolean c;
+	number a;
 in
-	a=b;
-	c=2-2;
-end
+	set a=b;
+	set c=2-2;
+end;

@@ -299,14 +299,14 @@ def Sintaxer(lx, tokens, textoPrograma):
 			#p[0] = Function(p[1])
 			
 	def p_program(p):
-		'''program : PROGRAM statement PUNTOYCOMA END PUNTOYCOMA
+		'''program : PROGRAM statement_block
 			| function program'''
 		p[0] = Program(p[2])
 	
 	#-----------------------------------------------------------------------------------
 	### STATEMENTS
 	def p_statement_block(p): ## PONER EL IN!
-		'statement : USE statement_decl_list IN statement_list END'
+		'statement_block : USE statement_decl_list IN statement_list END PUNTOYCOMA'
 		p[0]=Bloque(p[2],p[4])
 	
 	def p_statement_list(p):
@@ -357,6 +357,7 @@ def Sintaxer(lx, tokens, textoPrograma):
 		'statement_decl : BOOLEAN ID'
 		p[0]= Declaracion(p[2], 'Booleano')
 		
+		
 	def p_statement_READ(p):
 		'statement : READ ID'
 		p[0] = Read(Variable(p[2]))
@@ -366,8 +367,17 @@ def Sintaxer(lx, tokens, textoPrograma):
 		p[0] = Print(p[2])
 		
 	def p_function(p):
-		'function : FUNCTION ID expression RETURN expression BEGIN statement_list END PUNTOYCOMA'
+		'function : FUNCTION ID expression RETURN type BEGIN statement_list END PUNTOYCOMA'
 		p[0] = Function(Variable(p[2]), p[3], p[5],p[7])
+		
+	def p_type(p):
+		'''type : NUMBER
+				| BOOLEAN
+				| MATRIX PARENTESISABRE expression COMA expression PARENTESISCIERRA
+				| ROW PARENTESISABRE expression PARENTESISCIERRA
+				| COL PARENTESISABRE expression PARENTESISCIERRA'''
+		p[0] = p[1]
+		
 # --------------------------------------------------------------------------		
 	### EXPRESIONES 
 	def p_expression_SUMA(p):
@@ -533,6 +543,6 @@ def Sintaxer(lx, tokens, textoPrograma):
 		error = 1
 		sys.exit(error)
 		
-	yacc.yacc(start='program')	
+	yacc.yacc(start='program')
 	yacc.parse(lexer=lx).show(0)
 	return error
