@@ -90,8 +90,6 @@ if __name__ == '__main__':
 	('NUMERO'),
 	('ID')]
 	
-	#print(lx.token())
-	
-	
-	Sintaxer(lx,lista, copia)
+	x=Sintaxer(lx,lista, copia)
+	exit(x)
 	

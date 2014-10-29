@@ -98,7 +98,7 @@ def Lexer(text):
 		for i in ErrEncontrados:
 			print("Error:{} encontrado en fila {} y columna {}".format(i[0],i[1],i[2]))
 		print("Ocurrio al menos un error Lexicografico. Deteniendo la ejecucion")
-		return []
+		exit(1)
 
 if __name__ == '__main__':
 	

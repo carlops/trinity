@@ -25,10 +25,10 @@ class Function:
 		print('  '*(depth+1) + 'Parametros:')
 		self.parametros.show(depth+2)
 		print('  '*(depth+1) + 'Retorna Tipo:')
-		self.tipo.show(depth+2)
+		print('  '*(depth+2) + self.tipo)
 		print('  '*(depth+1) + 'BEGIN:')
-		self.instrucciones(depth+2)
-		print('  '*(depth+1) + 'END:')
+		self.instrucciones.show(depth+2)
+		print('  '*(depth+1) + 'END')
 		
 class Program:
 	def __init__(self,cuerpo):
@@ -76,10 +76,10 @@ class instruccion_IF(Statement):
 	def show(self, depth):
 		print('  '*depth+'IF:')
 		self.condicion.show(depth+1)
-		print('  '*depth + 'THEN')
+		print('  '*depth + 'THEN:')
 		self.instrucciones.show(depth+1)
 		if self.instruccionesElse != None:
-			print('  '*depth + 'ELSE')
+			print('  '*depth + 'ELSE:')
 			self.instruccionesElse.show(depth+1)
 		print('  '*depth + 'END')
 		
@@ -92,9 +92,9 @@ class instruccion_FOR(Statement):
 	def show(self,depth):
 		print('  '*depth+'FOR:')
 		self.ID.show(depth+1)
-		print('  '*depth + 'IN')
+		print('  '*depth + 'IN:')
 		self.estructura.show(depth+1)
-		print('  '*depth + 'DO')
+		print('  '*depth + 'DO:')
 		self.instrucciones.show(depth+1)
 		print('  '*depth + 'END')
 		
@@ -106,7 +106,7 @@ class instruccion_WHILE(Statement):
 	def show(self, depth):
 		print('  '*depth+'WHILE:')
 		self.condicion.show(depth+1)
-		print('  '*depth + 'DO')
+		print('  '*depth + 'DO:')
 		self.instrucciones.show(depth+1)
 		print('  '*depth + 'END')
 		
@@ -122,8 +122,17 @@ class Print(Statement):
 		self.parametros = parametros
 		
 	def show(self, depth):
-		print('  '*depth + 'Print')
+		print('  '*depth + 'Print:')
 		self.parametros.show(depth + 1)
+		
+class Return(Statement):
+	def __init__(self,statement):
+		self.statement = statement
+		
+	def show(self, depth):
+		print('  '*depth + 'Return:')
+		self.statement.show(depth + 1)
+		
 #------------------------------------------------------------------
 class Expresion(object):
 	def __init__(self, hijos):
@@ -144,7 +153,7 @@ class OperacionUnaria(Expresion):
 		self.hijo.show(depth+1)
 		
 class Agrupadores(Expresion):
-	def __init__(self, p, abresimbolo, cierrasimbolo): #( (sa OR p) AND rrdd)
+	def __init__(self, p, abresimbolo, cierrasimbolo):
 		self.abresimbolo = abresimbolo
 		self.cierrasimbolo = cierrasimbolo
 		self.expresion = p
@@ -256,6 +265,7 @@ class DeclaracionMatriz(Statement):
 		print('  '*depth +'Columna(s):')
 		self.col.show(depth+1)
 		self.Identificador.show(depth)
+	############ VERIFICAR QUE DENTRO DE LOS PARENTESIS ESTEN SON ENTEROS!! ##########
 
 class ColRow(Statement):
 	def __init__(self, Identificador, valor, nombre):
@@ -275,6 +285,9 @@ class Variable(Expresion):
 		
 	def show(self, depth):
 		print('  '*depth + 'Identificador:\n' + '  '*(depth+1) + 'nombre: '+str(self.valor))
+
+
+
 #--------------------------------------------------------------------------------------------
 
 def Sintaxer(lx, tokens, textoPrograma):
@@ -290,23 +303,67 @@ def Sintaxer(lx, tokens, textoPrograma):
 		('left', 'COMILLASIMPLE'),
 		('right', 'UMINUS')
 	)
-	#def p_comienzo(p):
-		#'''comienzo : program
-			#| function comienzo'''
-		#if len(p) == 2:
-			#p[0] = Program(p[1])
-		#else:
-			#p[0] = Function(p[1])
-			
+	
 	def p_program(p):
-		'''program : PROGRAM statement_block
-			| function program'''
-		p[0] = Program(p[2])
+		'''program : PROGRAM statement_list END PUNTOYCOMA
+			| FUNCTION ID PARENTESISABRE statement_decl_param PARENTESISCIERRA RETURN type BEGIN function_statement_list END PUNTOYCOMA program'''
+		if len(p)==5:
+			p[0] = Program(p[2])
+		else:
+			p[0] = Function(Variable(p[2]), p[4], p[7],p[9])
+			
+	#-----------------------------------------------------------------------------------
+	### FUNCTION statements
+	
+	def p_function_statement_list(p):
+		'''function_statement_list : function_statement PUNTOYCOMA
+					| function_statement PUNTOYCOMA function_statement_list'''
+		if len(p)==3:
+			p[0]=ListasSt_Dcl(p[1],None)
+		else:
+			p[0]=ListasSt_Dcl(p[1] ,p[3])
+	
+	def p_function_RETURN(p):
+		'function_statement : RETURN expression'
+		p[0] = Return(p[2])
+	
+	def p_function_statement_READ(p):
+		'function_statement : READ ID'
+		p[0] = Read(Variable(p[2]))
+		
+	def p_function_statement_PRINT(p):
+		'function_statement : PRINT parametro'
+		p[0] = Print(p[2])
+		
+	def p_function_statement_Assing(p):
+		'''function_statement : SET ID IGUAL expression
+				| SET ID CORCHETEABRE parametro CORCHETECIERRA IGUAL expression'''
+		if len(p)==5:
+			p[0] = Asignar(Variable(p[2]),p[4])
+		else:
+			p[0] = Asignar_Matriz(Variable(p[2]) ,p[4] ,p[7] )
+	
+	# instrucciones de control
+	def p_function_IF(p):
+		'''function_statement : IF expression THEN function_statement_list ELSE function_statement_list END
+					| IF expression THEN function_statement_list END'''
+		if len(p) == 8:
+			p[0] = instruccion_IF(p[2],p[4],p[6])
+		else:
+			p[0] = instruccion_IF(p[2],p[4],None)
+	
+	def p_fuction_FOR(p):
+		'function_statement : FOR ID IN expression DO function_statement_list END'
+		p[0] = instruccion_FOR(Variable(p[2]),p[4],p[6])
+		
+	def p_function_WHILE(p):
+		'function_statement : WHILE expression DO function_statement_list END'
+		p[0] = instruccion_WHILE(p[2], p[4])
 	
 	#-----------------------------------------------------------------------------------
 	### STATEMENTS
-	def p_statement_block(p): ## PONER EL IN!
-		'statement_block : USE statement_decl_list IN statement_list END PUNTOYCOMA'
+	def p_statement_block(p):
+		'statement : USE statement_decl_list IN statement_list END'
 		p[0]=Bloque(p[2],p[4])
 	
 	def p_statement_list(p):
@@ -316,14 +373,14 @@ def Sintaxer(lx, tokens, textoPrograma):
 			p[0]=ListasSt_Dcl(p[1],None)
 		else:
 			p[0]=ListasSt_Dcl(p[1] ,p[3])
-		
-	def p_statement_Assing(p):
-		'''statement : SET ID IGUAL expression
-				| SET ID CORCHETEABRE parametro CORCHETECIERRA IGUAL expression'''
-		if len(p)==5:
-			p[0] = Asignar(Variable(p[2]),p[4])
+	
+	def p_statement_decl_param(p):
+		'''statement_decl_param : statement_decl
+							| statement_decl COMA statement_decl_param'''
+		if len(p)==2:
+			p[0] = ListasSt_Dcl(p[1],None)
 		else:
-			p[0]=Asignar_Matriz(Variable(p[2]) ,p[4] ,p[7] )
+			p[0] = ListasSt_Dcl(p[1],p[3])
 	
 	def p_statement_decl_list(p):
 		'''statement_decl_list : statement_decl PUNTOYCOMA
@@ -357,7 +414,6 @@ def Sintaxer(lx, tokens, textoPrograma):
 		'statement_decl : BOOLEAN ID'
 		p[0]= Declaracion(p[2], 'Booleano')
 		
-		
 	def p_statement_READ(p):
 		'statement : READ ID'
 		p[0] = Read(Variable(p[2]))
@@ -366,10 +422,33 @@ def Sintaxer(lx, tokens, textoPrograma):
 		'statement : PRINT parametro'
 		p[0] = Print(p[2])
 		
-	def p_function(p):
-		'function : FUNCTION ID expression RETURN type BEGIN statement_list END PUNTOYCOMA'
-		p[0] = Function(Variable(p[2]), p[3], p[5],p[7])
+	def p_statement_Assing(p):
+		'''statement : SET ID IGUAL expression
+				| SET ID CORCHETEABRE parametro CORCHETECIERRA IGUAL expression'''
+		if len(p)==5:
+			p[0] = Asignar(Variable(p[2]),p[4])
+		else:
+			p[0]=Asignar_Matriz(Variable(p[2]) ,p[4] ,p[7] )
+	
+	# instrucciones de control
+	def p_IF(p):
+		'''statement : IF expression THEN statement_list ELSE statement_list END
+					| IF expression THEN statement_list END'''
+		if len(p) == 8:
+			p[0] = instruccion_IF(p[2],p[4],p[6])
+		else:
+			p[0] = instruccion_IF(p[2],p[4],None)
+	
+	def p_FOR(p):
+		'statement : FOR ID IN expression DO statement_list END'
+		p[0] = instruccion_FOR(Variable(p[2]),p[4],p[6])
 		
+	def p_WHILE(p):
+		'statement : WHILE expression DO statement_list END'
+		p[0] = instruccion_WHILE(p[2], p[4])
+	
+# --------------------------------------------------------------------------
+	### AUXILIAR 
 	def p_type(p):
 		'''type : NUMBER
 				| BOOLEAN
@@ -378,8 +457,9 @@ def Sintaxer(lx, tokens, textoPrograma):
 				| COL PARENTESISABRE expression PARENTESISCIERRA'''
 		p[0] = p[1]
 		
-# --------------------------------------------------------------------------		
+# --------------------------------------------------------------------------
 	### EXPRESIONES 
+	
 	def p_expression_SUMA(p):
 		'expression : expression SUMA expression'
 		p[0] = OperacionBinaria(p,'Suma')
@@ -453,7 +533,7 @@ def Sintaxer(lx, tokens, textoPrograma):
 		p[0] = Booleano(p[1])
 		
 	def p_expression_STRING(p):
-		'expression : STRING'
+		'string : STRING'
 		p[0] = String(p[1])
 		
 	def p_expression_Comparativos(p):
@@ -491,12 +571,18 @@ def Sintaxer(lx, tokens, textoPrograma):
 			p[0] = Transpuesta(p[2])
 	#--------------------------------------------------------------
 	def p_parentesis(p):
-		'expression : PARENTESISABRE parametro PARENTESISCIERRA'
+		'expression : PARENTESISABRE expression PARENTESISCIERRA'
 		p[0] = Agrupadores(p[2],'Abre Parentesis','Cierra Parentesis')
+	
+	#def p_parametros(p):
+		#'parametros : PARENTESISABRE parametro PARENTESISCIERRA'
+		#p[0] = Agrupadores(p[2],'Abre Parentesis','Cierra Parentesis')
 		
-	def p_parametros(p):
+	def p_parametro(p):
 		"""parametro : expression
-					| expression COMA parametro"""
+					| string
+					| expression COMA parametro
+					| string COMA parametro"""
 		if len(p)==2:
 			p[0] = ListasSt_Dcl(p[1],None)
 		else:
@@ -518,31 +604,14 @@ def Sintaxer(lx, tokens, textoPrograma):
 		'expression : expression CORCHETEABRE parametro CORCHETECIERRA'
 		p[0] = Proyeccion(p[1],p[3])
 		
-	# instrucciones condicionales
-	def p_IF(p):
-		'''statement : IF expression THEN statement_list ELSE statement_list END
-					| IF expression THEN statement END'''
-		if len(p) == 8:
-			p[0] = instruccion_IF(p[2],p[4],p[6])
-		else:
-			p[0] = instruccion_IF(p[2],p[4],None)
-	
-	def p_FOR(p):
-		'statement : FOR ID IN expression DO statement_list END'
-		p[0] = instruccion_FOR(Variable(p[2]),p[4],p[6])
-		
-	def p_WHILE(p):
-		'statement : WHILE expression DO statement_list END'
-		p[0] = instruccion_WHILE(p[2], p[4])
-		
 	def p_error(p):
 		if p==None:
 			print ("Error Sintactico, estructura incompleta")
 		else:
 			print ("Error: {} de tipo {} encontrado en la fila {}, columna {}".format(p.value,p.type,p.lineno,p.lexpos))
-		error = 1
-		sys.exit(error)
+		error = 2
+		exit(error)
 		
 	yacc.yacc(start='program')
 	yacc.parse(lexer=lx).show(0)
-	return error
+	return (error)

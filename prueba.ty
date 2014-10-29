@@ -1,8 +1,20 @@
+#function foo(number bar, boolean baz ) return number
+#begin
+#	if baz then
+#		set bar = 42 + bar;
+#		return blah;
+#	end;
+#	print baz;
+#	return 27;
+#end;
+
+
 program 
 use
 	boolean c;
 	number a;
 in
-	set a=b;
+	set a= ((b+c)+d);
 	set c=2-2;
+end;
 end;
