@@ -13,14 +13,15 @@ import re
 import sys
 
 class Function:
-	def __init__(self,Identificador, parametros, tipo, instrucciones):
+	def __init__(self,Identificador, parametros, tipo, instrucciones,siguiente):
 		self.Identificador = Identificador
 		self.parametros = parametros
 		self.tipo = tipo
 		self.instrucciones = instrucciones
+		self.siguiente= siguiente
 		
 	def show(self, depth):
-		print('  '*depth + 'Funcion:')
+		print('  '*depth + 'FUNCTION:')
 		self.Identificador.show(depth+1)
 		print('  '*(depth+1) + 'Parametros:')
 		self.parametros.show(depth+2)
@@ -28,21 +29,22 @@ class Function:
 		print('  '*(depth+2) + self.tipo)
 		print('  '*(depth+1) + 'BEGIN:')
 		self.instrucciones.show(depth+2)
-		print('  '*(depth+1) + 'END')
+		print('  '*(depth+1) + 'END\n')
+		self.siguiente.show(depth)
 		
 class Program:
 	def __init__(self,cuerpo):
 		self.cuerpo=cuerpo
 
 	def show(self, depth):
-		#print 'PROGRAM'
-		self.cuerpo.show(depth)
-		#print 'END'
+		print 'PROGRAM'
+		self.cuerpo.show(depth+1)
+		print 'END'
 		
 class Statement:
 	pass
-	
-class ListasSt_Dcl(Statement):
+
+class ListasSt(Statement):
 	def __init__(self, AnStatement, ManyStatements):
 		self.AnStatement = AnStatement
 		self.ManyStatements = ManyStatements
@@ -53,15 +55,48 @@ class ListasSt_Dcl(Statement):
 		else:
 			self.AnStatement.show(depth)
 			self.ManyStatements.show(depth)
+			
+class ListasSt_Dcl(Statement):
+	def __init__(self, AnStatement, ManyStatements):
+		self.AnStatement = AnStatement
+		self.ManyStatements = ManyStatements
+		self.IdValor = {}
+		self.Aux = {}
+		self.clave = None
+		
+	def show(self, depth):
+		if self.ManyStatements == None:
+			self.AnStatement.show(depth)
+		else:
+			self.AnStatement.show(depth)
+			self.ManyStatements.show(depth)
+		
+	def getDict(self):
+		self.clave =self.AnStatement.getValor()
+		self.IdValor[self.clave]=self.AnStatement.getTipo()
+		if self.ManyStatements != None:
+			self.Aux = self.ManyStatements.getDict()
+			for i in self.Aux:
+				if self.clave != i:
+					self.IdValor[i]=self.Aux[i]
+				else:
+					print('Error de contexto: variable {} ya declarada'.format(i))
+					exit(3)
+		return self.IdValor
 
 class Bloque(Statement):
 	def __init__(self,declaraciones,instrucciones):
 		self.declaraciones=declaraciones
 		self.instrucciones=instrucciones
+		self.diccionario={}
 		
 	def show(self,depth):
 		print('  '*depth+'USE:')
 		self.declaraciones.show(depth+1)
+		self.diccionario=self.declaraciones.getDict();
+		print(self.diccionario)
+		
+############ LLAMAR A ALCANCE  ############
 		print('  '*depth+'IN:')
 		self.instrucciones.show(depth+1)
 		print('  '*depth+'END')
@@ -229,6 +264,8 @@ class LiteralNumerico(Expresion):
 		self.valor = numero
 	def show(self, depth):
 		print('  '*depth + 'Literal Numerico:\n'+'  '*(depth+1) + 'valor: '+str(self.valor))
+	def check(self,tabla):
+		return TNum()
 	
 class Booleano(Expresion):
 	def __init__(self,booleano):
@@ -247,9 +284,12 @@ class Declaracion(Statement):
 	def __init__(self,valor,tipo):
 		self.tipo = tipo
 		self.valor = valor
-		
 	def show(self, depth):
-		print('  '*depth +'Declaracion: ' + str(self.tipo)+'\n'+ '  '*(depth+1) +  'Identificador:\n' + '  '*(depth+2) + 'nombre: '+str(self.valor))
+		print('  '*depth +'Declaracion: '+str(self.tipo)+'\n'+'  '*(depth+1)+'Identificador:\n'+'  '*(depth+2)+'nombre: '+str(self.valor))
+	def getTipo(self):
+		return self.tipo
+	def getValor(self):
+		return self.valor
 
 class DeclaracionMatriz(Statement):
 	def __init__(self,Identificador,fila,col):
@@ -285,8 +325,38 @@ class Variable(Expresion):
 		
 	def show(self, depth):
 		print('  '*depth + 'Identificador:\n' + '  '*(depth+1) + 'nombre: '+str(self.valor))
+	
+class Tipo():
+	pass
+	
+class TNum(Tipo):
+	pass
+	
+class TBool(Tipo):
+	pass
+	
+class TMatrix(Tipo):
+	def __init__(self,TamFila,TamColumna):
+		self.TamFila=TamFila
+		self.TamColumna=TamColumna
 
-
+class Alcance: #decls se crea al ver un USE o un FOR
+	def __init__ (self,decls,padre):
+		self.locales={}
+		for key in decls: 
+			self.locales[key]=decls[key]
+		self.padre=padre
+		self.hijos=[]
+		padre.hijos.append(self)
+	
+	def buscar(self, nombre):
+		if nombre in self.locales:
+			return self.locales[nombre]
+		elif padre is not None:
+			return self.padre.buscar(nombre)
+		else:
+			print('Error de contexto: variable {} no declarada'.format(nombre))
+			exit(4)
 
 #--------------------------------------------------------------------------------------------
 
@@ -310,10 +380,18 @@ def Sintaxer(lx, tokens, textoPrograma):
 		if len(p)==5:
 			p[0] = Program(p[2])
 		else:
-			p[0] = Function(Variable(p[2]), p[4], p[7],p[9])
+			p[0] = Function(Variable(p[2]), p[4], p[7],p[9],p[12])
 			
 	#-----------------------------------------------------------------------------------
 	### FUNCTION statements
+	
+	#def p_function_list(p):
+		#'''function_list : FUNCTION ID PARENTESISABRE statement_decl_param PARENTESISCIERRA RETURN type BEGIN function_statement_list END PUNTOYCOMA
+					#| FUNCTION ID PARENTESISABRE statement_decl_param PARENTESISCIERRA RETURN type BEGIN function_statement_list END PUNTOYCOMA function_list'''
+		#if len(p)==12:
+			#p[0] = Function(Variable(p[2]), p[4], p[7],p[9],None)
+		#else:
+			#p[0] = Function(Variable(p[2]), p[4], p[7],p[9],p[12])
 	
 	def p_function_statement_list(p):
 		'''function_statement_list : function_statement PUNTOYCOMA
@@ -370,9 +448,9 @@ def Sintaxer(lx, tokens, textoPrograma):
 		'''statement_list : statement PUNTOYCOMA
 					| statement PUNTOYCOMA statement_list'''
 		if len(p)==3:
-			p[0]=ListasSt_Dcl(p[1],None)
+			p[0]=ListasSt(p[1],None)
 		else:
-			p[0]=ListasSt_Dcl(p[1] ,p[3])
+			p[0]=ListasSt(p[1] ,p[3])
 	
 	def p_statement_decl_param(p):
 		'''statement_decl_param : statement_decl
