@@ -56,6 +56,13 @@ class ListasSt(Statement):
 			self.AnStatement.show(depth)
 			self.ManyStatements.show(depth)
 			
+	def check(self, tabla):
+		if self.ManyStatements == None:
+			self.AnStatement.check(tabla)
+		else:
+			self.AnStatement.check(tabla)
+			self.ManyStatements.check(tabla)
+			
 class ListasSt_Dcl(Statement):
 	def __init__(self, AnStatement, ManyStatements):
 		self.AnStatement = AnStatement
@@ -90,6 +97,7 @@ class Bloque(Statement):
 		self.instrucciones=instrucciones
 		self.diccionario={}
 		
+		
 	def show(self,depth):
 		print('  '*depth+'USE:')
 		self.declaraciones.show(depth+1)
@@ -98,6 +106,8 @@ class Bloque(Statement):
 		
 ############ LLAMAR A ALCANCE  ############
 		print('  '*depth+'IN:')
+		scope = Alcance(self.diccionario,None)
+		self.instrucciones.check(scope)
 		self.instrucciones.show(depth+1)
 		print('  '*depth+'END')
 		
@@ -210,11 +220,13 @@ class Proyeccion(Expresion):
 		self.parametros.show(depth+2)
 		#print self.parametros
 		print('  '*(depth+1) + 'Cierra Corchetes')
-		
+
+
 class OperacionBinaria(Expresion):
 	def __init__(self, p,name):
 		self.hijos = {'operando izquierdo': p[1], 'operando derecho': p[3]}
 		self.name=name
+		
 	def show(self, depth):
 		print('  '*depth + self.name + ':')
 		depth=depth+1
@@ -222,7 +234,102 @@ class OperacionBinaria(Expresion):
 		self.hijos['operando izquierdo'].show(depth+1)
 		print ('  '*depth + 'operando derecho:'+'  '*depth)
 		self.hijos['operando derecho'].show(depth+1)
+		
+	def check(self,tabla):
+		operandoizq = self.hijos['operando izquierdo'].check(tabla)
+		print operandoizq
+		operandoder = self.hijos['operando derecho'].check(tabla)
+		print operandoder
+		return self.equals(operandoizq,operandoder,self.name)
 	
+	# SUMA RESTA MULT
+	def equals(self,izq,der,operador):
+		if (isinstance(izq,TNum) and isinstance(der,TNum)):
+			return izq
+		### HAY OPERADORES BINARIOS QUE RETORNAN BOOLEANOS  ><##
+		### FALTA VERIFICACION DE MATRIZ ###
+		else:
+			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
+			exit(6)
+
+class OperacionBinariaSRM(OperacionBinaria):
+	def check(self,tabla):
+		operandoizq = self.hijos['operando izquierdo'].check(tabla)
+		print operandoizq
+		operandoder = self.hijos['operando derecho'].check(tabla)
+		print operandoder
+		return self.equals(operandoizq,operandoder,self.name)
+	
+	def equals(self,izq,der,operador):
+		if (isinstance(izq,TNum) and isinstance(der,TNum)):
+			return izq
+		elif (isinstance(izq,TMatrix) and isinstance(der,TMatrix)):
+			if (operador=='Suma' or operador=='Resta'):
+				if (izq.TamFila==der.TamFila and izq.TamColumna==der.TamColumna):
+					return izq
+				else:
+					print ("Error: dimensiones de matrices incorrectas, no pueden ser operadas con el operador {} ".format(operador))
+					exit(6)
+			else:#Multiplicacion
+				if (izq.TamColumna==der.TamFila):
+					return TMatrix(izq.TamFila,der.TamColumna)
+				else:
+					print ("Error: dimensiones de matrices incorrectas, no pueden ser operadas con el operador {} ".format(operador))
+					exit(6)
+		else:
+			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
+			exit(6)
+			
+class OperacionBinariaComp(OperacionBinaria):
+	def check(self,tabla):
+		operandoizq = self.hijos['operando izquierdo'].check(tabla)
+		print operandoizq
+		operandoder = self.hijos['operando derecho'].check(tabla)
+		print operandoder
+		return self.equals(operandoizq,operandoder,self.name)
+	
+	def equals(self,izq,der,operador):
+		if izq == der:
+			return izq
+		### HAY OPERADORES BINARIOS QUE RETORNAN BOOLEANOS  ><##
+		### FALTA VERIFICACION DE MATRIZ ###
+		else:
+			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
+		exit(6)
+	
+class OperacionBinariaIgualdad(OperacionBinaria):
+	def check(self,tabla):
+		operandoizq = self.hijos['operando izquierdo'].check(tabla)
+		print operandoizq
+		operandoder = self.hijos['operando derecho'].check(tabla)
+		print operandoder
+		return self.equals(operandoizq,operandoder,self.name)
+	
+	def equals(izq,der,operador):
+		if izq == der:### FALTA VERIFICACION DE MATRIZ ###
+			return izq
+		### HAY OPERADORES BINARIOS QUE RETORNAN BOOLEANOS  ><##
+		### FALTA VERIFICACION DE MATRIZ ###
+		else:
+			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
+			exit(6)
+		
+class OperacionBinariaOpBool(OperacionBinaria):
+	def check(self,tabla):
+		operandoizq = self.hijos['operando izquierdo'].check(tabla)
+		print operandoizq
+		operandoder = self.hijos['operando derecho'].check(tabla)
+		print operandoder
+		return self.equals(operandoizq,operandoder,self.name)
+	
+	def equals(izq,der,operador):
+		if izq == der:
+			return izq
+		###  OPERADORES BINARIOS QUE RETORNAN BOOLEANOS  ><##
+		else:
+			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
+		exit(6)
+		
 class Asignar(Expresion):
 	def __init__(self,variable,expresion):
 		self.hijos = {'variable': variable, 'expresion': expresion}
@@ -234,6 +341,24 @@ class Asignar(Expresion):
 		self.hijos['variable'].show(depth+1)
 		print ('  '*depth + 'lado derecho:'+'  '*depth)
 		self.hijos['expresion'].show(depth+1)
+		
+	def check(self,tabla):
+		ladoizq = self.hijos['variable'].check(tabla)
+		ladoder = self.hijos['expresion'].check(tabla)
+		return self.equals(ladoizq,ladoder)
+		
+	def equals(self,izq,der):
+		if isinstance(izq,der.__class__):
+			if izq.__class__.__name__=='TMatrix':
+				if (izq.TamFila==der.TamFila and der.TamColumna==izq.TamColumna):
+					return izq
+				else:
+					print ("Error: Asignacion Invalida, dimensiones de matrices incorrectas")
+					exit(7)
+			return izq
+		else:
+			print ("Error: Asignacion Invalida, esperado tipo '{}' y encontrado tipo '{}' ".format(izq.tipo,der.tipo))
+			exit(7)
 		
 class Asignar_Matriz(Statement):
 	def __init__(self,Identificador, proyeccion, expresion):
@@ -249,6 +374,10 @@ class Asignar_Matriz(Statement):
 		print('  '*depth + 'operando derecho: ')
 		self.expresion.show(depth+1)
 		
+	def check(self,tabla):
+		pass
+		#ladoizq = self.
+		
 class Transpuesta(Expresion):
 	def __init__(self, valor):
 		self.valor = valor
@@ -262,16 +391,20 @@ class Transpuesta(Expresion):
 class LiteralNumerico(Expresion):
 	def __init__(self,numero):
 		self.valor = numero
+		
 	def show(self, depth):
 		print('  '*depth + 'Literal Numerico:\n'+'  '*(depth+1) + 'valor: '+str(self.valor))
+		
 	def check(self,tabla):
-		return TNum()
+		return TNum(self.valor)
 	
 class Booleano(Expresion):
 	def __init__(self,booleano):
 		self.valor = booleano
 	def show(self, depth):
 		print('  '*depth + 'Booleano:\n'+'  '*(depth+1) + 'valor: '+str(self.valor))
+	def check(self,tabla):
+		return TBool(self.valor)
 		
 class String(Expresion):
 	def __init__(self,valor):
@@ -281,21 +414,32 @@ class String(Expresion):
 		print ('  '*depth + 'String: '+ str(self.valor))
 
 class Declaracion(Statement): 
-	def __init__(self,valor,tipo):
+	def __init__(self,nombre,tipo,expresion):
 		self.tipo = tipo
-		self.valor = valor
+		self.nombre = nombre
+		self.expresion = expresion
+		
 	def show(self, depth):
-		print('  '*depth +'Declaracion: '+str(self.tipo)+'\n'+'  '*(depth+1)+'Identificador:\n'+'  '*(depth+2)+'nombre: '+str(self.valor))
+		print('  '*depth +'Declaracion: '+str(self.tipo))
+		if self.expresion!=None:
+			Asignar(self.nombre, self.expresion).show(depth+1)
+		else:
+			print('  '*(depth+1)+'Identificador:')
+			self.nombre.show(depth+2)
+		
 	def getTipo(self):
-		return self.tipo
+		for i in Tipo.__subclasses__():
+			if i.tipo==self.tipo:
+				return i(self.nombre)
 	def getValor(self):
-		return self.valor
+		return self.nombre.valor
 
 class DeclaracionMatriz(Statement):
-	def __init__(self,Identificador,fila,col):
+	def __init__(self,Identificador,fila,col,expresion):
 		self.Identificador = Identificador
 		self.fila = fila
 		self.col = col
+		self.expresion = expresion
 	
 	def show(self,depth):
 		print('  '*depth +'Declaracion: Matriz')
@@ -304,7 +448,26 @@ class DeclaracionMatriz(Statement):
 		self.fila.show(depth+1)
 		print('  '*depth +'Columna(s):')
 		self.col.show(depth+1)
-		self.Identificador.show(depth)
+		self.check()
+		if self.expresion!=None:
+			Asignar(self.Identificador,self.expresion).show(depth)
+		else:
+			self.Identificador.show(depth)
+			
+	def getTipo(self):
+		return TMatrix(self.fila.valor,self.col.valor)
+	def getValor(self):
+		return self.Identificador.valor
+	
+	def check(self):
+		# Verificacion que dentro de los parentesis esten enteros
+		if  (isinstance(self.fila,LiteralNumerico) and isinstance(self.col,LiteralNumerico)):
+			if self.expresion != None:
+				print self.expresion
+		else:
+			print('Error: invalida declaracion de matriz, esperado tipo Numerico ')
+			exit(7)
+			
 	############ VERIFICAR QUE DENTRO DE LOS PARENTESIS ESTEN SON ENTEROS!! ##########
 
 class ColRow(Statement):
@@ -325,20 +488,29 @@ class Variable(Expresion):
 		
 	def show(self, depth):
 		print('  '*depth + 'Identificador:\n' + '  '*(depth+1) + 'nombre: '+str(self.valor))
+		
+	def check(self,tabla):
+		return tabla.buscar(self.valor)
 	
-class Tipo():
+class Tipo(object):
 	pass
 	
 class TNum(Tipo):
-	pass
+	tipo = 'Numerico'
+	def __init__(self,valor):
+		self.valor = valor
+		
 	
 class TBool(Tipo):
-	pass
+	tipo='Booleano'
+	def __init__(self,valor):
+		self.valor = valor
 	
 class TMatrix(Tipo):
 	def __init__(self,TamFila,TamColumna):
 		self.TamFila=TamFila
 		self.TamColumna=TamColumna
+		self.tipo = 'Matriz'
 
 class Alcance: #decls se crea al ver un USE o un FOR
 	def __init__ (self,decls,padre):
@@ -347,12 +519,13 @@ class Alcance: #decls se crea al ver un USE o un FOR
 			self.locales[key]=decls[key]
 		self.padre=padre
 		self.hijos=[]
-		padre.hijos.append(self)
+		if self.padre != None:
+			self.padre.hijos.append(self)
 	
 	def buscar(self, nombre):
 		if nombre in self.locales:
 			return self.locales[nombre]
-		elif padre is not None:
+		elif self.padre != None:
 			return self.padre.buscar(nombre)
 		else:
 			print('Error de contexto: variable {} no declarada'.format(nombre))
@@ -365,8 +538,8 @@ def Sintaxer(lx, tokens, textoPrograma):
 	precedence = (
 		("left", 'OR'),
 		("left", 'AND'),
-		('right','NOT'),
 		("nonassoc","IGUAL2","DISTINTO","MAYORIGUAL","MENORIGUAL","MAYORQUE","MENORQUE"),
+		('right','NOT'), 
 		('left', 'MSUMA', 'MMENOS','MAST','MSLASH','MPORCENTAJE', 'MDIV', 'MMOD'),
 		('left', 'SUMA', 'MENOS'),
 		('left', 'AST','SLASH','PORCENTAJE', 'DIV', 'MOD'),
@@ -469,8 +642,12 @@ def Sintaxer(lx, tokens, textoPrograma):
 			p[0] = ListasSt_Dcl(p[1],p[3])
 		
 	def p_statement_Matrix(p):
-		'statement_decl : MATRIX PARENTESISABRE expression COMA expression PARENTESISCIERRA ID'
-		p[0] = DeclaracionMatriz(Variable(p[7]),p[3],p[5])
+		'''statement_decl : MATRIX PARENTESISABRE expression COMA expression PARENTESISCIERRA ID
+							| MATRIX PARENTESISABRE expression COMA expression PARENTESISCIERRA ID IGUAL expression'''
+		if len(p)==8:
+			p[0] = DeclaracionMatriz(Variable(p[7]),p[3],p[5],None)
+		else:
+			p[0] = DeclaracionMatriz(Variable(p[7]),p[3],p[5],p[9])
 		
 	def p_statement_Row(p):
 		'statement_decl : ROW PARENTESISABRE expression PARENTESISCIERRA ID'
@@ -481,16 +658,16 @@ def Sintaxer(lx, tokens, textoPrograma):
 		p[0] = ColRow(Variable(p[5]),p[3],'Vector Columna')
 		
 	def p_statement_NUMBER(p):
-		'statement_decl : NUMBER ID'
-		p[0] = Declaracion(p[2], 'Numerico')
-		#if re.match(r'\d+\.d+',p[2]):
-			#p[0] = float(p[2])
-		#else:
-			#p[0]= int(p[2])
+		'''statement_decl : NUMBER ID
+						| NUMBER ID IGUAL expression'''
+		if len(p)==3:
+			p[0] = Declaracion(Variable(p[2]), 'Numerico',None)
+		else:
+			p[0] = Declaracion(Variable(p[2]), 'Numerico',p[4])
 			
 	def p_statement_BOOLEAN(p):
 		'statement_decl : BOOLEAN ID'
-		p[0]= Declaracion(p[2], 'Booleano')
+		p[0]= Declaracion(Variable(p[2]), 'Booleano')
 		
 	def p_statement_READ(p):
 		'statement : READ ID'
@@ -537,22 +714,24 @@ def Sintaxer(lx, tokens, textoPrograma):
 		
 # --------------------------------------------------------------------------
 	### EXPRESIONES 
-	
+
+#-------------- Numericas y Matriciales ------------------------------	
 	def p_expression_SUMA(p):
 		'expression : expression SUMA expression'
-		p[0] = OperacionBinaria(p,'Suma')
+		p[0] = OperacionBinariaSRM(p,'Suma')
 	
 	def p_expression_AST(p):
 		'expression : expression AST expression'
-		p[0] = OperacionBinaria(p,'Multiplicacion')
+		p[0] = OperacionBinariaSRM(p,'Multiplicacion')
 	
+	def p_expression_MENOS(p):
+		'expression : expression MENOS expression'
+		p[0] = OperacionBinariaSRM(p,'Resta')
+		
+#-------------------- Numericas -------------------------------------------
 	def p_expression_SLASH(p):
 		'expression : expression SLASH expression'
 		p[0] = OperacionBinaria(p,'Division')
-		
-	def p_expression_MENOS(p):
-		'expression : expression MENOS expression'
-		p[0] = OperacionBinaria(p,'Resta')
 		
 	def p_expression_PORCENTAJE(p):
 		'expression : expression PORCENTAJE expression'
@@ -566,7 +745,7 @@ def Sintaxer(lx, tokens, textoPrograma):
 		'expression : expression MOD expression'
 		p[0] = OperacionBinaria(p,'Modulo Entero')
 
-#---------------------------Operaciones Binarias Matrices---------------------------------			
+#---------------------------Operaciones Binarias Cruzadas---------------------------------			
 	def p_expression_MSUMA(p):
 		'expression : expression MSUMA expression'
 		p[0] = OperacionBinaria(p,'Suma Matriz')
@@ -615,21 +794,24 @@ def Sintaxer(lx, tokens, textoPrograma):
 		p[0] = String(p[1])
 		
 	def p_expression_Comparativos(p):
-		"""expression : expression IGUAL2 expression
-					| expression DISTINTO expression
-					| expression MAYORIGUAL expression
+		"""expression : expression MAYORIGUAL expression
 					| expression MENORIGUAL expression
 					| expression MAYORQUE expression
 					| expression MENORQUE expression"""
-		p[0] = OperacionBinaria(p,str(p[2]))
+		p[0] = OperacionBinariaComp(p,str(p[2]))
+		
+	def p_expression_Comparativos_Igualdad(p):
+		"""expression : expression IGUAL2 expression
+					| expression DISTINTO expression"""
+		p[0] = OperacionBinariaIgualdad(p,str(p[2]))
 		
 	def p_expression_OR(p):
 		'expression : expression OR expression'
-		p[0] = OperacionBinaria(p,'OR')
+		p[0] = OperacionBinariaOpBool(p,'OR')
 	
 	def p_expression_AND(p):
 		'expression : expression AND expression'
-		p[0] = OperacionBinaria(p,'AND')
+		p[0] = OperacionBinariaOpBool(p,'AND')
 		
 	##########UNARIOS ###########
 	def p_menos_unario(p):

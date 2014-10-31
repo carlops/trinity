@@ -10,11 +10,13 @@
 
 
 program 
-use
-	boolean c;
-	number a;
-in
-	set a= ((b+c)+d);
-	set c=2-2;
-end;
+	use
+		matrix(2,2) c;
+		number a=42;
+		matrix(2,5) b = {1, 2, 3, 4, 5:1,2,3,4,5};
+		matrix(5,2) h;
+	in
+		set c = b * h;
+#		set c=2-2;
+	end;
 end;
