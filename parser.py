@@ -19,6 +19,8 @@ class Function:
 		self.tipo = tipo
 		self.instrucciones = instrucciones
 		self.siguiente= siguiente
+		self.diccionario={}
+		self.diccionario=self.declaraciones.getDict();
 		
 	def show(self, depth):
 		print('  '*depth + 'FUNCTION:')
@@ -32,6 +34,14 @@ class Function:
 		print('  '*(depth+1) + 'END\n')
 		self.siguiente.show(depth)
 		
+	def check(self,tabla):
+		scope = Alcance(self.Identificador,self.diccionario,tabla)
+		self.parametros.check(scope)
+		self.instrucciones.check(scope)
+		self.siguiente.check(scope)
+		if tabla==None:
+			scope.Mostrar()
+		
 class Program:
 	def __init__(self,cuerpo):
 		self.cuerpo=cuerpo
@@ -40,6 +50,9 @@ class Program:
 		print 'PROGRAM'
 		self.cuerpo.show(depth+1)
 		print 'END'
+		
+	def check(self,tabla):
+		self.cuerpo.check(tabla)
 		
 class Statement:
 	pass
@@ -58,14 +71,16 @@ class Bloque(Statement):
 		print('  '*depth+'IN:')
 		self.instrucciones.show(depth+1)
 		print('  '*depth+'END')
-		scope = Alcance('main',self.diccionario,None,0)
-		self.declaraciones.check(scope)
-		self.instrucciones.check(scope)
-		scope.Mostrar()
 		#self.check(self.scope)
 		
 	def check(self,tabla):
-		pass
+		
+		scope = Alcance('main',self.diccionario,tabla)
+		self.declaraciones.check(scope)
+		self.instrucciones.check(scope)
+		if tabla==None:
+			scope.Mostrar()
+	
 
 class ListasSt(Statement):
 	def __init__(self, AnStatement, ManyStatements):
@@ -105,7 +120,7 @@ class ParametrosProyeccion(ListasSt):
 			#if int(segundo.getValor())<1:
 				#print('Error: proyeccion matricial, los indices deben ser mayores que uno')
 				#exit(10)
-		#return valores
+		return primer
 		
 class ParametrosMatriz(Statement):
 	def __init__(self, UnParametro, OtrosParametros):
@@ -220,11 +235,22 @@ class instruccion_IF(Statement):
 			self.instruccionesElse.show(depth+1)
 		print('  '*depth + 'END')
 		
+	def check(self,tabla):
+		tipo = self.condicion.check(tabla)
+		if not isinstance(tipo,TBool):
+			print ("Error: condicion de IF, esperado tipo 'Booleano' encontrado tipo '{}'".format(tipo.tipo))
+			exit(12)
+		self.instrucciones.check(tabla)
+		if self.instruccionesElse != None:
+			self.instruccionesElse.check(tabla)
+			
 class instruccion_FOR(Statement):
 	def __init__(self,ID,estructura,instrucciones):
 		self.ID= ID
 		self.estructura = estructura
 		self.instrucciones = instrucciones
+		self.diccionario={}
+		self.diccionario[self.ID.getValor()]=TNum(self.ID.getValor());
 		
 	def show(self,depth):
 		print('  '*depth+'FOR:')
@@ -235,6 +261,16 @@ class instruccion_FOR(Statement):
 		self.instrucciones.show(depth+1)
 		print('  '*depth + 'END')
 		
+	def check(self,tabla):
+		scope = Alcance(self.ID,self.diccionario,tabla)
+		if not isinstance(self.estructura.check(scope),TMatrix):
+			print('Error: en for, esperado tipo \'Matriz\', encontrado \'{}\''.format(self.estructura.check(scope).tipo))
+			exit(15)
+		self.instrucciones.check(scope)
+		if tabla==None:
+			scope.Mostrar()
+		
+	
 class instruccion_WHILE(Statement):
 	def __init__(self, condicion,instrucciones):
 		self.condicion = condicion
@@ -247,12 +283,23 @@ class instruccion_WHILE(Statement):
 		self.instrucciones.show(depth+1)
 		print('  '*depth + 'END')
 		
+	def check(self,tabla):
+		tipo = self.condicion.check(tabla)
+		if not isinstance(tipo,TBool):
+			print ("Error: invalida condicion de WHILE, esperado tipo 'Booleano' encontrado tipo {}".format(tipo.tipo))
+			exit(14)
+		self.instrucciones.check(tabla)
+		
 class Read(Statement):
 	def __init__(self, Identificador):
 		self.Identificador = Identificador
 	def show(self, depth):
 		print ('  '*depth + 'Lectura:')
 		self.Identificador.show(depth+1)
+	def check(self,tabla):
+		if isinstance(self.Identificador,TMatrix):
+			print ("Error: invalida operacion con 'read' identificador del tipo 'Matriz'")
+			exit(14)
 		
 class Print(Statement):
 	def __init__(self,parametros):
@@ -261,6 +308,9 @@ class Print(Statement):
 	def show(self, depth):
 		print('  '*depth + 'Print:')
 		self.parametros.show(depth + 1)
+		
+	def check(self,tabla):
+		self.parametros.check(tabla)
 		
 class Return(Statement):
 	def __init__(self,statement):
@@ -327,8 +377,15 @@ class Proyeccion(Expresion):
 		self.parametros.show(depth+2)
 		#print self.parametros
 		print('  '*(depth+1) + 'Cierra Corchetes')
-
-
+		
+	def check(self,tabla):
+		tipoE= self.expresion.check(tabla)
+		if not isinstance(tipoE,TMatrix):
+			print("Error: invalida proyeccion, identificador del tipo {} y esperado del tipo 'Matriz'".format(tipoE.tipo))
+			exit(15)
+		
+		return self.parametros.check(tabla)
+		
 class OperacionBinaria(Expresion):
 	def __init__(self, p,name):
 		self.hijos = {'operando izquierdo': p[1], 'operando derecho': p[3]}
@@ -408,16 +465,10 @@ class OperacionBinariaComp(OperacionBinaria):
 		#print operandoizq
 		operandoder = self.hijos['operando derecho'].check(tabla)
 		#print operandoder
-		return self.equals(operandoizq,operandoder,self.name)
-	
-	def equals(self,izq,der,operador):
-		if izq == der:
-			return izq
-		### HAY OPERADORES BINARIOS QUE RETORNAN BOOLEANOS  ><##
-		### FALTA VERIFICACION DE MATRIZ ###
-		else:
-			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
-		exit(6)
+		if not isinstance(operandoizq,TNum) or not isinstance(operandoder,TNum):
+			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(operandoizq.tipo,operandoder.tipo,self.name))
+			exit(6)
+		return TBool('true')
 	
 class OperacionBinariaIgualdad(OperacionBinaria):
 	def check(self,tabla):
@@ -427,11 +478,21 @@ class OperacionBinariaIgualdad(OperacionBinaria):
 		#print operandoder
 		return self.equals(operandoizq,operandoder,self.name)
 	
-	def equals(izq,der,operador):
-		if izq == der:### FALTA VERIFICACION DE MATRIZ ###
-			return izq
-		### HAY OPERADORES BINARIOS QUE RETORNAN BOOLEANOS  ><##
-		### FALTA VERIFICACION DE MATRIZ ###
+	def equals(self,izq,der,operador):
+		if isinstance(izq,der.__class__):
+			return TBool('true')
+			#if isinstance(der,TMatrix):
+				#filader=der.getTamFila().getValor()
+				#filaizq=izq.getTamFila().getValor()
+				#colder=der.getTamCol().getValor()
+				#colizq=izq.getTamCol().getValor()
+				
+				#if filader==filaizq and colder==colizq:
+					#return TBool('true')
+				#else
+					#print("")
+			#else:
+				#return TBool('true')
 		else:
 			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
 			exit(6)
@@ -566,6 +627,9 @@ class String(Expresion):
 		
 	def show(self,depth):
 		print ('  '*depth + 'String: '+ str(self.valor))
+		
+	def check(self,tabla):
+		pass
 
 class Declaracion(Statement): 
 	def __init__(self,nombre,tipo,expresion):
@@ -646,8 +710,6 @@ class DeclaracionMatriz(Statement):
 			print('Error: invalida declaracion de matriz, esperado tipo Numerico ')
 			exit(7)
 			
-	############ VERIFICAR QUE DENTRO DE LOS PARENTESIS ESTEN SON ENTEROS!! ##########
-
 class ColRow(Statement):
 	def __init__(self, Identificador, valor, nombre,expresion):
 		self.Identificador = Identificador
@@ -690,7 +752,14 @@ class Variable(Expresion):
 		print('  '*depth + 'Identificador:\n' + '  '*(depth+1) + 'nombre: '+str(self.valor))
 		
 	def check(self,tabla):
-		return tabla.buscar(self.valor)
+		if tabla != None:
+			return tabla.buscar(self.valor)
+		else:
+			print ("Error: uso de varible no declarada '{}'".format(self.valor))
+			exit(16)
+			
+	def getValor(self):
+		return self.valor
 	
 class Tipo(object):
 	pass
@@ -734,20 +803,27 @@ class TMatrix(Tipo):
 		return '{}({},{})'.format(self.tipo,self.TamFila,self.TamColumna)
 
 class Alcance: #decls se crea al ver un USE o un FOR
-	def __init__ (self,nombre,decls,padre,nivel):
+	def __init__ (self,nombre,decls,padre):
 		self.nombre = nombre
-		self.nivel = nivel
 		self.locales={}
+		self.padre=padre
+		self.nivel=self.getNivel(self.padre)
 		for key in decls: 
 			self.locales[key]=decls[key]
-		self.padre=padre
 		self.hijos=[]
 		if self.padre != None:
 			self.padre.hijos.append(self)
-			
+	
+	def getNivel(self,tabla):
+		if tabla==None:
+			return 0
+		else:
+			return 1 + self.getNivel(tabla.padre)
+	
 	def Mostrar(self):
-		depth=' '*self.nivel
-		print(depth+'Alcance '+self.nombre +':')
+		depth=' '*self.nivel*2
+		print(depth+'Alcance '+str(self.nivel) +':')
+		self.nivel=self.nivel*2
 		depth=' '*(self.nivel+2)
 		print(depth+'Simbolos:')
 		depth=' '*(self.nivel+4)
@@ -1094,8 +1170,8 @@ def Sintaxer(lx, tokens, textoPrograma):
 	def p_parametros_impresion(p):
 		'''parametros_impresion : expression
 					| string
-					| expression COMA parametro
-					| string COMA parametro'''
+					| expression COMA parametros_impresion
+					| string COMA parametros_impresion'''
 		if len(p)==2:
 			p[0] = ListasSt(p[1],None)
 		else:
@@ -1152,5 +1228,5 @@ def Sintaxer(lx, tokens, textoPrograma):
 		exit(error)
 		
 	yacc.yacc(start='program')
-	yacc.parse(lexer=lx).show(0)
+	yacc.parse(lexer=lx).check(None)
 	return (error)

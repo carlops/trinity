@@ -10,29 +10,92 @@
 
 
 program 
-	use
-		col(5) c = {0:1:2:3:4};
-		row(18) r;
+	#use
+		#col(5) c = {0:1:2:3:4};
+		#row(18) r;
 		#matrix(1,2) m;
-		#matrix(3,2) c;
-		number w=88;
-		number a=w;
-		matrix(3,5) b = {1,2,3,4,5:1,2,3,4,5:6,7,8,9,0};
-		#matrix(5,2) h;
-		boolean l= not false;
+		##matrix(3,2) c;
+		#number w=88;
+		#number a=w;
+		#matrix(3,5) b = {1,2,3,4,5:1,2,3,4,5:6,7,8,9,0};
+		##matrix(5,2) h;
+		#boolean l= not false;
+	#in
+		#({42,12,81:12,13,14})';
+		#c';
+		#if c==c then
+			#not l;
+			#set c=c';
+		#else
+			#c';
+		#end;
+		
+		#while l==true do 
+			#set w=5;
+		#end;
+	use
+		number n;
 	in
-		not l;
-		({42,12,81:12,13,14})';
-		c';
+		read n;	
+	end;
+		print n+1;
+		
+	use 
+		number r;
+		number c;
+		matrix(2, 4) fresh_m; 
+	in
+		use 
+			number fresh_r = 1; 
+			boolean p;
+		in
+			while fresh_r <= r do
+				use 
+					number fresh_c = 1; 
+				in
+				while fresh_c <= r do
+					use
+						number i = fresh_m[fresh_r, fresh_c];
+					in
+						use
+							number l;
+						in
+							set l=l*5;
+						end;
+						use
+							boolean l;
+						in
+							for x in { 1, 2, 3 : 4, 5, 6 } do
+								use
+									boolean x; # esconde la x declarada en el for y se inicializa en 'false'
+								in
+									set x = not x;
+									print "Print 4", x, l, fresh_m[r,c]*2; # x es del tipo booleano
+								end;
+							end;
+
+							set l= p;
+						end;
+					end;
+					set fresh_c = fresh_c + 1;
+					end;
+				end;
+			end;
+			set fresh_r = fresh_r + 1;
+		end;
 		c*r;
+	end;
+
+		#b/=c;
 		#r*c;
-		set l= not(true | (((false))&l));
-		not(true | (((false))&l));
+		#set l= not(true | (((false))&l));
+		#not(true | (((false))&l));
+		
 		#c+r;
 		#set b = {w,2,3,4,5:1,2,3,4,5:6,7,8,9,0};
 		#set c = b * h;
 #		set c=2-2;
-	end;
+	#end;
 end;
 
 #program
