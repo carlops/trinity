@@ -43,6 +43,29 @@ class Program:
 		
 class Statement:
 	pass
+		
+class Bloque(Statement):
+	def __init__(self,declaraciones,instrucciones):
+		self.declaraciones=declaraciones
+		self.instrucciones=instrucciones
+		self.diccionario={}
+		self.diccionario=self.declaraciones.getDict();
+		#print(self.diccionario)
+		
+	def show(self,depth): ## este show hay que cambiarlo por check
+		print('  '*depth+'USE:')
+		self.declaraciones.show(depth+1)
+		print('  '*depth+'IN:')
+		self.instrucciones.show(depth+1)
+		print('  '*depth+'END')
+		scope = Alcance('main',self.diccionario,None,0)
+		self.declaraciones.check(scope)
+		self.instrucciones.check(scope)
+		scope.Mostrar()
+		#self.check(self.scope)
+		
+	def check(self,tabla):
+		pass
 
 class ListasSt(Statement):
 	def __init__(self, AnStatement, ManyStatements):
@@ -63,6 +86,60 @@ class ListasSt(Statement):
 			self.AnStatement.check(tabla)
 			self.ManyStatements.check(tabla)
 			
+class ParametrosProyeccion(ListasSt):
+	def check(self, tabla):
+		primer=self.AnStatement.check(tabla)
+		if not isinstance(primer,TNum):
+			print('Error: proyeccion matricial, esperado tipo \'Numerico\' y recibido tipo {}'.format(primer.__class__.__name__))
+			exit(10)
+		#if int(primer.getValor())<1:
+			#print('Error: proyeccion matricial, los indices deben ser mayores que uno')
+			#exit(10)
+		#valores=[int(primer.getValor())]
+		if self.ManyStatements != None:
+			segundo=self.ManyStatements.check(tabla)
+			#valores.append(int(segundo.getValor()))
+			if not isinstance(segundo,TNum):
+				print('Error: proyeccion matricial, esperado tipo \'Numerico\' y recibido tipo {}'.format(segundo.__class__.__name__))
+				exit(10)
+			#if int(segundo.getValor())<1:
+				#print('Error: proyeccion matricial, los indices deben ser mayores que uno')
+				#exit(10)
+		#return valores
+		
+class ParametrosMatriz(Statement):
+	def __init__(self, UnParametro, OtrosParametros):
+		self.UnParametro = UnParametro
+		self.OtrosParametros = OtrosParametros
+		
+	def show(self, depth):
+		if self.OtrosParametros == None:
+			self.UnParametro.show(depth)
+		else:
+			self.UnParametro.show(depth)
+			self.OtrosParametros.show(depth)
+			
+	def check(self, tabla):
+		if self.OtrosParametros == None:
+			tipo = self.UnParametro.check(tabla)
+			if not isinstance(tipo,TNum):
+				print("Error: parametro invalido en matriz encontrado tipo '{}' esperado tipo 'Numerico'".format(tipo))
+				exit(8)
+		else:
+			tipo = self.UnParametro.check(tabla)
+			if isinstance(tipo,TNum):
+				self.OtrosParametros.check(tabla)
+			else:
+				print("Error: parametro invalido en matriz encontrado tipo '{}' esperado tipo 'Numerico'".format(tipo))
+				exit(8)
+		return self.size()
+		
+	def size(self):
+		if self.OtrosParametros == None:
+			return 1
+		else:
+			return 1 + self.OtrosParametros.size()
+		
 class ListasSt_Dcl(Statement):
 	def __init__(self, AnStatement, ManyStatements):
 		self.AnStatement = AnStatement
@@ -72,12 +149,15 @@ class ListasSt_Dcl(Statement):
 		self.clave = None
 		
 	def show(self, depth):
-		if self.ManyStatements == None:
-			self.AnStatement.show(depth)
-		else:
-			self.AnStatement.show(depth)
+		self.AnStatement.show(depth)
+		if self.ManyStatements != None:
 			self.ManyStatements.show(depth)
-		
+			
+	def check(self, tabla):
+		self.AnStatement.check(tabla)
+		if self.ManyStatements != None:
+			self.ManyStatements.check(tabla)
+			
 	def getDict(self):
 		self.clave =self.AnStatement.getValor()
 		self.IdValor[self.clave]=self.AnStatement.getTipo()
@@ -90,26 +170,38 @@ class ListasSt_Dcl(Statement):
 					print('Error de contexto: variable {} ya declarada'.format(i))
 					exit(3)
 		return self.IdValor
+	
+class LiteralMatricial(Statement):
+	def __init__(self, parametroActual, restoParametros):
+		self.parametroActual = parametroActual
+		self.restoParametros = restoParametros
+		self.NumFilas=1
+		self.NumCol=0
+		
+	def show(self, depth):
+		if self.restoParametros == None:
+			self.parametroActual.show(depth)
+		else:
+			self.parametroActual.show(depth)
+			print(" "*(depth+4) + "DOSPUNTOS")
+			self.restoParametros.show(depth)
+		
+	def check(self,tabla): ######### CAMBIAR #########
+		self.NumCol= self.parametroActual.check(tabla)
+		self.NumFilas = self.checkMatriz(1,self.NumCol,tabla)
+		filas = str(self.NumFilas)
+		columnas = str(self.NumCol)
+		return TMatrix(filas,columnas)
 
-class Bloque(Statement):
-	def __init__(self,declaraciones,instrucciones):
-		self.declaraciones=declaraciones
-		self.instrucciones=instrucciones
-		self.diccionario={}
+	def checkMatriz(self,filas,columnas,tabla):
+		if columnas!= self.parametroActual.check(tabla):
+			print("Error en Literal Matricial: las columnas deben tener la misma longitud")
+			exit(9)
+		if self.restoParametros != None:
+			#col=col+ self.parametroActual.check(tabla)
+			filas = filas + self.restoParametros.checkMatriz(filas,columnas,tabla)
+		return filas
 		
-		
-	def show(self,depth):
-		print('  '*depth+'USE:')
-		self.declaraciones.show(depth+1)
-		self.diccionario=self.declaraciones.getDict();
-		print(self.diccionario)
-		
-############ LLAMAR A ALCANCE  ############
-		print('  '*depth+'IN:')
-		scope = Alcance(self.diccionario,None)
-		self.instrucciones.check(scope)
-		self.instrucciones.show(depth+1)
-		print('  '*depth+'END')
 		
 #---------ESTRUCTURAS DE CONTROL-----------------------
 class instruccion_IF(Statement):
@@ -197,17 +289,32 @@ class OperacionUnaria(Expresion):
 		print('  '*depth + self.name + ':')
 		self.hijo.show(depth+1)
 		
+	def check(self, tabla):
+		tipo=self.hijo.check(tabla)
+		if self.name=='Negacion':
+			if not isinstance(tipo,TBool):
+				print ("Error: esperado tipo Booleano, encontrado "+tipo)
+				exit(13)
+		else:
+			if not isinstance(tipo,TNum):
+				print ("Error: esperado tipo Numerico, encontrado "+tipo)
+				exit(13)
+		return tipo
+		
 class Agrupadores(Expresion):
-	def __init__(self, p, abresimbolo, cierrasimbolo):
+	def __init__(self, expresion, abresimbolo, cierrasimbolo):
 		self.abresimbolo = abresimbolo
 		self.cierrasimbolo = cierrasimbolo
-		self.expresion = p
+		self.expresion = expresion
 		
 	def show(self,depth):
 		print('  '*depth + self.abresimbolo)
 		self.expresion.show(depth+1)
 		print('  '*depth + self.cierrasimbolo)
 		
+	def check(self,tabla):
+		return self.expresion.check(tabla)
+	
 class Proyeccion(Expresion):
 	def __init__(self,expresion,parametros):
 		self.expresion = expresion
@@ -237,9 +344,9 @@ class OperacionBinaria(Expresion):
 		
 	def check(self,tabla):
 		operandoizq = self.hijos['operando izquierdo'].check(tabla)
-		print operandoizq
+		#print operandoizq
 		operandoder = self.hijos['operando derecho'].check(tabla)
-		print operandoder
+		#print operandoder
 		return self.equals(operandoizq,operandoder,self.name)
 	
 	# SUMA RESTA MULT
@@ -252,12 +359,27 @@ class OperacionBinaria(Expresion):
 			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
 			exit(6)
 
+class OperacionBinariaCruzada(OperacionBinaria):
+	def check(self,tabla):
+		operandoizq = self.hijos['operando izquierdo'].check(tabla)
+		operandoder = self.hijos['operando derecho'].check(tabla)
+		return self.equals(operandoizq,operandoder,self.name)
+	
+	def equals(self,izq,der,operador):
+		if (isinstance(izq,TNum) and isinstance(der,TMatrix)):
+			return der
+		elif (isinstance(izq,TMatrix) and isinstance(der,TNum)):
+			return izq
+		else:
+			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
+			exit(15)
+
 class OperacionBinariaSRM(OperacionBinaria):
 	def check(self,tabla):
 		operandoizq = self.hijos['operando izquierdo'].check(tabla)
-		print operandoizq
+		#print operandoizq
 		operandoder = self.hijos['operando derecho'].check(tabla)
-		print operandoder
+		#print operandoder
 		return self.equals(operandoizq,operandoder,self.name)
 	
 	def equals(self,izq,der,operador):
@@ -283,9 +405,9 @@ class OperacionBinariaSRM(OperacionBinaria):
 class OperacionBinariaComp(OperacionBinaria):
 	def check(self,tabla):
 		operandoizq = self.hijos['operando izquierdo'].check(tabla)
-		print operandoizq
+		#print operandoizq
 		operandoder = self.hijos['operando derecho'].check(tabla)
-		print operandoder
+		#print operandoder
 		return self.equals(operandoizq,operandoder,self.name)
 	
 	def equals(self,izq,der,operador):
@@ -300,9 +422,9 @@ class OperacionBinariaComp(OperacionBinaria):
 class OperacionBinariaIgualdad(OperacionBinaria):
 	def check(self,tabla):
 		operandoizq = self.hijos['operando izquierdo'].check(tabla)
-		print operandoizq
+		#print operandoizq
 		operandoder = self.hijos['operando derecho'].check(tabla)
-		print operandoder
+		#print operandoder
 		return self.equals(operandoizq,operandoder,self.name)
 	
 	def equals(izq,der,operador):
@@ -317,18 +439,16 @@ class OperacionBinariaIgualdad(OperacionBinaria):
 class OperacionBinariaOpBool(OperacionBinaria):
 	def check(self,tabla):
 		operandoizq = self.hijos['operando izquierdo'].check(tabla)
-		print operandoizq
+		#print operandoizq
 		operandoder = self.hijos['operando derecho'].check(tabla)
-		print operandoder
-		return self.equals(operandoizq,operandoder,self.name)
-	
-	def equals(izq,der,operador):
-		if izq == der:
-			return izq
-		###  OPERADORES BINARIOS QUE RETORNAN BOOLEANOS  ><##
-		else:
+		#print operandoder
+		if not isinstance(operandoizq,TBool):
 			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
-		exit(6)
+			exit(12)
+		if not isinstance(operandoder,TBool):
+			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
+			exit(12)
+		return operandoizq
 		
 class Asignar(Expresion):
 	def __init__(self,variable,expresion):
@@ -345,6 +465,7 @@ class Asignar(Expresion):
 	def check(self,tabla):
 		ladoizq = self.hijos['variable'].check(tabla)
 		ladoder = self.hijos['expresion'].check(tabla)
+
 		return self.equals(ladoizq,ladoder)
 		
 	def equals(self,izq,der):
@@ -359,8 +480,9 @@ class Asignar(Expresion):
 		else:
 			print ("Error: Asignacion Invalida, esperado tipo '{}' y encontrado tipo '{}' ".format(izq.tipo,der.tipo))
 			exit(7)
+			
 		
-class Asignar_Matriz(Statement):
+class Asignar_Matriz_Elem(Statement):
 	def __init__(self,Identificador, proyeccion, expresion):
 		self.Identificador = Identificador
 		self.proyeccion = proyeccion
@@ -375,8 +497,32 @@ class Asignar_Matriz(Statement):
 		self.expresion.show(depth+1)
 		
 	def check(self,tabla):
-		pass
-		#ladoizq = self.
+		ladoIzq = self.Identificador.check(tabla)
+		if not isinstance(ladoIzq,TMatrix):
+			print('Error: Esperado tipo matriz y encontrado '+ ladoIzq.tipo)
+		self.proyeccion.check(tabla)#Verifica que sean numericos
+		#error=False
+		#print parametros
+		#fila=int(ladoIzq.getTamFila())
+		#col =int(ladoIzq.getTamCol())
+		#if len(parametros)==1:
+			#if col==1 and fila<parametros[0]:
+				#error=True
+			#elif fila==1 and col<parametros[0]:
+				#error=True
+			#else:
+				#error=True
+		#elif len(parametros)==2:
+			#print "Caso 2"
+			#if fila<parametros[0] or col<parametros[1]:
+				#error=True
+		#if error:
+			#print('Error: Proyeccion no esta dentro del rango definido para la matriz')
+			#exit(10)
+		ladoDer = self.expresion.check(tabla)
+		if not isinstance(ladoDer,TNum):
+			print('Error: Esperado tipo numerico y encontrado '+ ladoDer.tipo)
+			exit(10)
 		
 class Transpuesta(Expresion):
 	def __init__(self, valor):
@@ -386,17 +532,25 @@ class Transpuesta(Expresion):
 		print ('  '*depth + 'Transpuesta: ')
 		self.valor.show(depth+1)
 		
+	def check(self,tabla):
+		tipo=self.valor.check(tabla)
+		if not isinstance(tipo,TMatrix):
+			print("Error: Transpuesta, esperado tipo Matriz, encontrado "+tipo.tipo)
+			exit(14)
+		return tipo
+		
+		
 #-------------------------------------------------------------------------------------
 # LITERALES!
 class LiteralNumerico(Expresion):
 	def __init__(self,numero):
 		self.valor = numero
-		
 	def show(self, depth):
 		print('  '*depth + 'Literal Numerico:\n'+'  '*(depth+1) + 'valor: '+str(self.valor))
-		
 	def check(self,tabla):
 		return TNum(self.valor)
+	def getValor(self):
+		return self.valor
 	
 class Booleano(Expresion):
 	def __init__(self,booleano):
@@ -427,10 +581,19 @@ class Declaracion(Statement):
 			print('  '*(depth+1)+'Identificador:')
 			self.nombre.show(depth+2)
 		
+	def check(self,tabla):
+		if self.expresion!=None:
+			if (self.expresion.check(tabla).getTipo()!=self.tipo):
+				print ('Error: Declaracion invalida, declarado tipo \'{}\', encontrado tipo \'{}\''.format(self.tipo,self.expresion.check(tabla).getTipo()))
+				exit(8)
+		return self.tipo
+	
 	def getTipo(self):
 		for i in Tipo.__subclasses__():
 			if i.tipo==self.tipo:
 				return i(self.nombre)
+					
+		
 	def getValor(self):
 		return self.nombre.valor
 
@@ -448,22 +611,37 @@ class DeclaracionMatriz(Statement):
 		self.fila.show(depth+1)
 		print('  '*depth +'Columna(s):')
 		self.col.show(depth+1)
-		self.check()
 		if self.expresion!=None:
 			Asignar(self.Identificador,self.expresion).show(depth)
 		else:
 			self.Identificador.show(depth)
-			
+		
 	def getTipo(self):
 		return TMatrix(self.fila.valor,self.col.valor)
+	
 	def getValor(self):
 		return self.Identificador.valor
 	
-	def check(self):
+	def check(self,tabla):
 		# Verificacion que dentro de los parentesis esten enteros
 		if  (isinstance(self.fila,LiteralNumerico) and isinstance(self.col,LiteralNumerico)):
+			if '.' in (self.fila.check(tabla).getValor()):
+				print('Error: invalida declaracion de matriz, esperado tipo Entero')
+				exit(7)
+			else:
+				if int(self.fila.check(tabla).getValor()) <1:
+					print('Error: invalida declaracion de matriz, la cantidad de filas debe ser positiva')
+					exit(7)
+			if '.' in (self.col.check(tabla).getValor()):
+				print('Error: invalida declaracion de matriz, esperado tipo Entero')
+				exit(7)
+			else:
+				if int(self.col.check(tabla).getValor()) <1:
+					print('Error: invalida declaracion de matriz, la cantidad de columnas debe ser positiva')
+					exit(7)
+			
 			if self.expresion != None:
-				print self.expresion
+				Asignar(self.Identificador,self.expresion).check(tabla)
 		else:
 			print('Error: invalida declaracion de matriz, esperado tipo Numerico ')
 			exit(7)
@@ -471,16 +649,38 @@ class DeclaracionMatriz(Statement):
 	############ VERIFICAR QUE DENTRO DE LOS PARENTESIS ESTEN SON ENTEROS!! ##########
 
 class ColRow(Statement):
-	def __init__(self, Identificador, valor, nombre):
+	def __init__(self, Identificador, valor, nombre,expresion):
 		self.Identificador = Identificador
 		self.valor = valor
 		self.nombre = nombre
+		self.expresion = expresion
+		self.fila=LiteralNumerico('1')
+		self.col=LiteralNumerico('1')
 		
 	def show(self, depth):
 		print ('  '*depth + 'Declaracion: ' + self.nombre)
 		print ('  '*(depth+1) + 'Longitud:')
 		self.valor.show(depth+2)
 		self.Identificador.show(depth+1)
+		if self.expresion!=None:
+			Asignar(self.Identificador,self.expresion).show(depth)
+		
+	def check(self,tabla):
+		tipo = self.valor.check(tabla)
+		if not isinstance(tipo,TNum):
+			print ('Error: declaracion de vector invalida, esperado tipo \'Numerico\' encontrado tipo \'{}\''.format(tipo.tipo))
+			exit(11)
+		DeclaracionMatriz(self.Identificador,self.fila,self.col,self.expresion).check(tabla)
+		
+	def getValor(self):
+		return self.Identificador.valor
+	
+	def getTipo(self):
+		if self.nombre=='Vector Columna':
+			self.fila=self.valor
+		elif self.nombre=='Vector Fila':
+			self.col=self.valor
+		return TMatrix(self.fila.valor,self.col.valor)
 
 class Variable(Expresion): 
 	def __init__(self,valor):
@@ -499,21 +699,44 @@ class TNum(Tipo):
 	tipo = 'Numerico'
 	def __init__(self,valor):
 		self.valor = valor
+	def getValor(self):
+		return self.valor
+	def getTipo(self):
+		return self.tipo
+	def toStr(self):
+		return self.tipo
 		
-	
 class TBool(Tipo):
 	tipo='Booleano'
 	def __init__(self,valor):
 		self.valor = valor
+	def getValor(self):
+		return self.valor
+	def getTipo(self):
+		return self.tipo
+	def toStr(self):
+		return self.tipo
 	
 class TMatrix(Tipo):
+	tipo = 'Matriz'
 	def __init__(self,TamFila,TamColumna):
 		self.TamFila=TamFila
 		self.TamColumna=TamColumna
-		self.tipo = 'Matriz'
+	def getTamFila(self):
+		#return self.TamFila.getValor()
+		return self.TamFila
+	def getTamCol(self):
+		#return self.TamColumna.getValor()
+		return self.TamColumna
+	def getTipo(self):
+		return self.tipo
+	def toStr(self):
+		return '{}({},{})'.format(self.tipo,self.TamFila,self.TamColumna)
 
 class Alcance: #decls se crea al ver un USE o un FOR
-	def __init__ (self,decls,padre):
+	def __init__ (self,nombre,decls,padre,nivel):
+		self.nombre = nombre
+		self.nivel = nivel
 		self.locales={}
 		for key in decls: 
 			self.locales[key]=decls[key]
@@ -521,6 +744,22 @@ class Alcance: #decls se crea al ver un USE o un FOR
 		self.hijos=[]
 		if self.padre != None:
 			self.padre.hijos.append(self)
+			
+	def Mostrar(self):
+		depth=' '*self.nivel
+		print(depth+'Alcance '+self.nombre +':')
+		depth=' '*(self.nivel+2)
+		print(depth+'Simbolos:')
+		depth=' '*(self.nivel+4)
+		for i in self.locales.items():
+			print(depth+str(i[0])+': '+i[1].toStr())
+		depth=' '*(self.nivel+2)
+		if self.hijos==[]:
+			print(depth+'Hijos: []')
+		else:
+			print(depth+'Hijos:')
+			for i in self.hijos:
+				i.Mostrar()
 	
 	def buscar(self, nombre):
 		if nombre in self.locales:
@@ -530,6 +769,8 @@ class Alcance: #decls se crea al ver un USE o un FOR
 		else:
 			print('Error de contexto: variable {} no declarada'.format(nombre))
 			exit(4)
+	
+	
 
 #--------------------------------------------------------------------------------------------
 
@@ -592,7 +833,7 @@ def Sintaxer(lx, tokens, textoPrograma):
 		if len(p)==5:
 			p[0] = Asignar(Variable(p[2]),p[4])
 		else:
-			p[0] = Asignar_Matriz(Variable(p[2]) ,p[4] ,p[7] )
+			p[0] = Asignar_Matriz_Elem(Variable(p[2]) ,p[4] ,p[7] )
 	
 	# instrucciones de control
 	def p_function_IF(p):
@@ -625,6 +866,10 @@ def Sintaxer(lx, tokens, textoPrograma):
 		else:
 			p[0]=ListasSt(p[1] ,p[3])
 	
+	def p_statement_expresion(p):
+		'statement : expression'
+		p[0]=p[1]
+	
 	def p_statement_decl_param(p):
 		'''statement_decl_param : statement_decl
 							| statement_decl COMA statement_decl_param'''
@@ -650,13 +895,20 @@ def Sintaxer(lx, tokens, textoPrograma):
 			p[0] = DeclaracionMatriz(Variable(p[7]),p[3],p[5],p[9])
 		
 	def p_statement_Row(p):
-		'statement_decl : ROW PARENTESISABRE expression PARENTESISCIERRA ID'
-		p[0] = ColRow(Variable(p[5]),p[3],'Vector Fila')
-		
+		'''statement_decl : ROW PARENTESISABRE expression PARENTESISCIERRA ID
+						| ROW PARENTESISABRE expression PARENTESISCIERRA ID IGUAL expression'''
+		if len(p)==6:
+			p[0] = ColRow(Variable(p[5]),p[3],'Vector Fila',None)
+		else:
+			p[0] = ColRow(Variable(p[5]),p[3],'Vector Fila',p[7])
+			
 	def p_statement_Col(p):
-		'statement_decl : COL PARENTESISABRE expression PARENTESISCIERRA ID'
-		p[0] = ColRow(Variable(p[5]),p[3],'Vector Columna')
-		
+		'''statement_decl : COL PARENTESISABRE expression PARENTESISCIERRA ID
+						| COL PARENTESISABRE expression PARENTESISCIERRA ID IGUAL expression'''
+		if len(p)==6:
+			p[0] = ColRow(Variable(p[5]),p[3],'Vector Columna',None)
+		else:
+			p[0] = ColRow(Variable(p[5]),p[3],'Vector Columna',p[7])
 	def p_statement_NUMBER(p):
 		'''statement_decl : NUMBER ID
 						| NUMBER ID IGUAL expression'''
@@ -666,24 +918,28 @@ def Sintaxer(lx, tokens, textoPrograma):
 			p[0] = Declaracion(Variable(p[2]), 'Numerico',p[4])
 			
 	def p_statement_BOOLEAN(p):
-		'statement_decl : BOOLEAN ID'
-		p[0]= Declaracion(Variable(p[2]), 'Booleano')
-		
+		'''statement_decl : BOOLEAN ID
+						| BOOLEAN ID IGUAL expression'''
+		if len(p)==3:
+			p[0]= Declaracion(Variable(p[2]), 'Booleano',None)
+		else:
+			p[0]= Declaracion(Variable(p[2]), 'Booleano',p[4])
+			
 	def p_statement_READ(p):
 		'statement : READ ID'
 		p[0] = Read(Variable(p[2]))
 		
 	def p_statement_PRINT(p):
-		'statement : PRINT parametro'
+		'statement : PRINT parametros_impresion'
 		p[0] = Print(p[2])
 		
 	def p_statement_Assing(p):
 		'''statement : SET ID IGUAL expression
-				| SET ID CORCHETEABRE parametro CORCHETECIERRA IGUAL expression'''
+				| SET ID CORCHETEABRE parametro_proyeccion CORCHETECIERRA IGUAL expression'''
 		if len(p)==5:
 			p[0] = Asignar(Variable(p[2]),p[4])
 		else:
-			p[0]=Asignar_Matriz(Variable(p[2]) ,p[4] ,p[7] )
+			p[0]=Asignar_Matriz_Elem(Variable(p[2]) ,p[4] ,p[7] )
 	
 	# instrucciones de control
 	def p_IF(p):
@@ -748,31 +1004,31 @@ def Sintaxer(lx, tokens, textoPrograma):
 #---------------------------Operaciones Binarias Cruzadas---------------------------------			
 	def p_expression_MSUMA(p):
 		'expression : expression MSUMA expression'
-		p[0] = OperacionBinaria(p,'Suma Matriz')
+		p[0] = OperacionBinariaCruzada(p,'Suma Matriz')
 	
 	def p_expression_MAST(p):
 		'expression : expression MAST expression'
-		p[0] = OperacionBinaria(p,'Multiplicacion Matriz')
+		p[0] = OperacionBinariaCruzada(p,'Multiplicacion Matriz')
 	
 	def p_expression_MSLASH(p):
 		'expression : expression MSLASH expression'
-		p[0] = OperacionBinaria(p,'Division Matriz')
+		p[0] = OperacionBinariaCruzada(p,'Division Matriz')
 		
 	def p_expression_MMENOS(p):
 		'expression : expression MMENOS expression'
-		p[0] = OperacionBinaria(p,'Resta Matriz')
+		p[0] = OperacionBinariaCruzada(p,'Resta Matriz')
 		
 	def p_expression_MPORCENTAJE(p):
 		'expression : expression MPORCENTAJE expression'
-		p[0] = OperacionBinaria(p,'Modulo Matriz')
+		p[0] = OperacionBinariaCruzada(p,'Modulo Matriz')
 		
 	def p_expression_MDIV(p):
 		'expression : expression MDIV expression'
-		p[0] = OperacionBinaria(p,'Division Entera Matriz')
+		p[0] = OperacionBinariaCruzada(p,'Division Entera Matriz')
 		
 	def p_expression_MMOD(p):
 		'expression : expression MMOD expression'
-		p[0] = OperacionBinaria(p,'Modulo Entero Matriz')
+		p[0] = OperacionBinariaCruzada(p,'Modulo Entero Matriz')
 	
 	
 	##  ## REDUCE ## LITERALES ## ##
@@ -823,45 +1079,68 @@ def Sintaxer(lx, tokens, textoPrograma):
 		p[0] = OperacionUnaria(p[2],'Negacion')
 		
 	def p_transpuesta(p):
-		'''expression : ID COMILLASIMPLE
-			| LLAVESABRE parametro_matriz LLAVESCIERRA COMILLASIMPLE'''
+		'''expression : expression COMILLASIMPLE
+			| LLAVESABRE parametros_matriz LLAVESCIERRA COMILLASIMPLE'''
 		if len(p)==3:
-			p[0] = Transpuesta(Variable(p[1]))
+			p[0] = Transpuesta(p[1])
 		else:
 			p[0] = Transpuesta(p[2])
 	#--------------------------------------------------------------
 	def p_parentesis(p):
 		'expression : PARENTESISABRE expression PARENTESISCIERRA'
 		p[0] = Agrupadores(p[2],'Abre Parentesis','Cierra Parentesis')
-	
-	#def p_parametros(p):
-		#'parametros : PARENTESISABRE parametro PARENTESISCIERRA'
-		#p[0] = Agrupadores(p[2],'Abre Parentesis','Cierra Parentesis')
 		
-	def p_parametro(p):
-		"""parametro : expression
+	
+	def p_parametros_impresion(p):
+		'''parametros_impresion : expression
 					| string
 					| expression COMA parametro
-					| string COMA parametro"""
+					| string COMA parametro'''
 		if len(p)==2:
-			p[0] = ListasSt_Dcl(p[1],None)
+			p[0] = ListasSt(p[1],None)
 		else:
-			p[0] = ListasSt_Dcl(p[1],p[3])
+			p[0] = ListasSt(p[1],p[3])
+	
+	def p_parametro(p):
+		"""parametro : expression
+					| expression COMA parametro"""
+		if len(p)==2:
+			p[0] = ListasSt(p[1],None)
+		else:
+			p[0] = ListasSt(p[1],p[3])
+			
+	def p_parametro_proyeccion(p):
+		"""parametro_proyeccion : expression
+					| expression COMA expression"""
+		if len(p)==2:
+			p[0] = ParametrosProyeccion(p[1],None)
+		else:
+			p[0] = ParametrosProyeccion(p[1],p[3])
+		
 	#------------------------------------------------------------------
 	def p_llaves(p):
-		'expression : LLAVESABRE parametro_matriz LLAVESCIERRA'	
+		'expression : LLAVESABRE parametros_matriz LLAVESCIERRA'	
 		p[0] = Agrupadores(p[2],'Abre Llaves','Cierra Llaves')	
 	
-	def p_parametros_matriz(p):
-		"""parametro_matriz : parametro
-					| parametro DOSPUNTOS parametro_matriz"""
+	def p_parametro_matriz(p):
+		"""parametro_matriz : expression
+					| expression COMA parametro_matriz"""
 		if len(p)==2:
-			p[0] = ListasSt_Dcl(p[1],None)
+			p[0] = ParametrosMatriz(p[1],None)
 		else:
-			p[0] = ListasSt_Dcl(p[1],p[3])
+			p[0] = ParametrosMatriz(p[1],p[3])
+	
+	def p_parametros_matriz(p):
+		"""parametros_matriz : parametro_matriz
+					| parametro_matriz DOSPUNTOS parametros_matriz"""
+		if len(p)==2:
+			p[0] = LiteralMatricial(p[1],None)
+		else:
+			p[0] = LiteralMatricial(p[1],p[3])
+			
 	#-----------------------------------------------------------------------
 	def p_proyeccion(p):
-		'expression : expression CORCHETEABRE parametro CORCHETECIERRA'
+		'expression : expression CORCHETEABRE parametro_proyeccion CORCHETECIERRA'
 		p[0] = Proyeccion(p[1],p[3])
 		
 	def p_error(p):

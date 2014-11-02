@@ -67,6 +67,8 @@ def Lexer(text):
 		m = re.match(r'#',text)
 		if m: # Encontre un comentario de linea
 			i = re.match(r'(.)*\n',text) # Encuentro en final de la linea de comentarios
+			if i == None: #si finaliza el archivo sin \n
+				break
 			text= text[len(i.group(0)):] # Se lo quito al text
 			NumLinea = NumLinea + 1
 			NumCol = 1
