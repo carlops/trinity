@@ -22,12 +22,25 @@ class Function:
 		self.instrucciones = instrucciones
 		self.siguiente= siguiente
 		self.diccionario={}
-		self.diccionario=self.parametros.getDict();
+		if self.parametros != None:
+			self.diccionario=self.parametros.getDict();
 		if  TFunciones.has_key(self.Identificador.getValor()):
 			print ("Error: funcion '{}' ya declarada".format(self.Identificador.getValor()))
 			exit(16)
 		else:
-			TFunciones[self.Identificador.getValor()] = Alcance(self.Identificador,self.diccionario,None)
+			lista = []
+			if self.parametros != None:
+				lista = self.parametros.getParam([])
+			
+			if self.tipo == 'number':
+				self.tipo = TNum('0')
+			elif self.tipo == 'boolean':
+				self.tipo = TBool('false')
+			else:
+				self.tipo = TMatrix('1','1')
+				
+			lista.insert(0,self.tipo)
+			TFunciones[self.Identificador.getValor()] = lista
 		
 	def show(self, depth):
 		print('  '*depth + 'FUNCTION:')
@@ -43,13 +56,13 @@ class Function:
 		
 	def check(self,tabla):
 		scope = Alcance(self.Identificador,self.diccionario,tabla)
-		self.parametros.check(scope)
-		self.instrucciones.check(scope)
-		#print(self.siguiente.Identificador.getValor())
-		#print TFunciones
-		self.siguiente.check(scope)
+		if self.parametros != None:
+			self.parametros.check(scope)
+		if self.instrucciones != None:
+			self.instrucciones.check(scope)
 		if tabla==None:
 			scope.Mostrar()
+		self.siguiente.check(None)
 		
 class Program:
 	def __init__(self,cuerpo):
@@ -85,7 +98,7 @@ class Bloque(Statement):
 		
 	def check(self,tabla):
 		
-		scope = Alcance('main',self.diccionario,tabla)
+		scope = Alcance(Variable('main'),self.diccionario,tabla)
 		self.declaraciones.check(scope)
 		self.instrucciones.check(scope)
 		if tabla==None:
@@ -196,6 +209,13 @@ class ListasSt_Dcl(Statement):
 					exit(3)
 		return self.IdValor
 	
+	def getParam(self,lista):
+		lista.append(self.AnStatement.getTipo())
+		if self.ManyStatements==None:
+			return lista
+		else:
+			return self.ManyStatements.getParam(lista)
+		 
 class LiteralMatricial(Statement):
 	def __init__(self, parametroActual, restoParametros):
 		self.parametroActual = parametroActual
@@ -651,15 +671,48 @@ class LiteralFuncion(Expresion):
 		self.Identificador = Identificador
 		self.parametros = parametros
 		
-	def check(self,tablaF):
-		if TFunciones.has_key(self.Identificador.getValor()):
-			pass
-		pass
+	def check(self,tabla):
+		fun = self.Identificador.getValor()
+		if not TFunciones.has_key(fun):
+			print("Error: funcion '{}' no declarada".format(fun))
+			exit(16)
+		parametrosFun = TFunciones[fun]
+		return self.parametros.check(tabla,parametrosFun)
 	
 class ParametrosFuncion(Expresion):
 	def __init__(self,AnStatement,ManyStatements):
 		self.AnStatement = AnStatement
 		self.ManyStatements = ManyStatements
+		self.size = self.getSize()
+		
+	def check(self,tabla,param):
+		if self.size != len(param)-1:
+			print ("Error: numero de parametros invalido en llamada a funcion")
+			exit(17)
+			
+		tipo1 = self.AnStatement.check(tabla)
+		lista = []
+		lista = self.getParam(lista,tabla)
+		
+		for ind,x in enumerate(lista):
+			if param[ind+1].tipo != x.tipo:
+				print("Error: invalido pase de parametro en invocacion a funcion, esperado tipo '{}' encontrado tipo '{}'".format(param[ind+1].tipo, x.tipo))
+				exit(17)
+		return param[0] 
+	
+		
+	def getParam(self,lista,tabla):
+		lista.append(self.AnStatement.check(tabla))
+		if self.ManyStatements==None:
+			return lista
+		else:
+			return self.ManyStatements.getParam(lista,tabla)
+		
+	def getSize(self):
+		if self.ManyStatements == None:
+			return 1
+		else:
+			return 1+self.ManyStatements.getSize()
 		
 #--------------- DECLACARACIONES
 class Declaracion(Statement): 
@@ -698,6 +751,7 @@ class DeclaracionMatriz(Statement):
 		self.fila = fila
 		self.col = col
 		self.expresion = expresion
+		self.tipo = 'Matriz'
 	
 	def show(self,depth):
 		print('  '*depth +'Declaracion: Matriz')
@@ -853,7 +907,10 @@ class Alcance: #decls se crea al ver un USE o un FOR
 	
 	def Mostrar(self):
 		depth=' '*self.nivel*2
-		print(depth+'Alcance '+str(self.nivel) +':')
+		if TFunciones.has_key(self.nombre.getValor()) or (self.nombre.getValor()=='main' and self.nivel==0):
+			print(depth+'Alcance '+self.nombre.getValor() +':')
+		else:
+			print(depth+'Alcance '+str(self.nivel) +':')
 		self.nivel=self.nivel*2
 		depth=' '*(self.nivel+2)
 		print(depth+'Simbolos:')
@@ -898,13 +955,24 @@ def Sintaxer(lx, tokens, textoPrograma):
 	def p_program(p):
 		'''program : PROGRAM statement_list END PUNTOYCOMA
 			| FUNCTION ID PARENTESISABRE statement_decl_param PARENTESISCIERRA RETURN type BEGIN function_statement_list END PUNTOYCOMA program
-			| PROGRAM END PUNTOYCOMA'''
+			| PROGRAM END PUNTOYCOMA
+			| FUNCTION ID PARENTESISABRE PARENTESISCIERRA RETURN type BEGIN END PUNTOYCOMA program
+			| FUNCTION ID PARENTESISABRE statement_decl_param PARENTESISCIERRA RETURN type BEGIN END PUNTOYCOMA program
+			|  FUNCTION ID PARENTESISABRE PARENTESISCIERRA RETURN type BEGIN function_statement_list  END PUNTOYCOMA program'''
 		if len(p)==5:
 			p[0] = Program(p[2])
 		elif len(p)==13:
 			p[0] = Function(Variable(p[2]), p[4], p[7],p[9],p[12])
-		else:
+		elif len(p)==4:
 			p[0] = Program(None)
+		elif len(p)==11:
+			p[0] = Function(Variable(p[2]),None,p[6],None,p[10])
+		elif len(p)==12:
+			if p[5] == 'return':
+				p[0] = Function(Variable(p[2]), None, p[6], p[8],p[11])
+			else:
+				p[0] = Function(Variable(p[2]),p[4], p[7], None,p[11])
+			
 	#-----------------------------------------------------------------------------------
 	### FUNCTION statements
 	
@@ -969,10 +1037,8 @@ def Sintaxer(lx, tokens, textoPrograma):
 		'''function_statement : IF expression THEN function_statement_list ELSE function_statement_list END
 					| IF expression THEN function_statement_list END'''
 		if len(p) == 8:
-			print('1')
 			p[0] = instruccion_IF(p[2],p[4],p[6])
 		elif len(p)==6:
-			print('2')
 			p[0] = instruccion_IF(p[2],p[4],None)
 	
 	def p_fuction_FOR(p):
@@ -1040,6 +1106,7 @@ def Sintaxer(lx, tokens, textoPrograma):
 			p[0] = ColRow(Variable(p[5]),p[3],'Vector Columna',None)
 		else:
 			p[0] = ColRow(Variable(p[5]),p[3],'Vector Columna',p[7])
+			
 	def p_statement_NUMBER(p):
 		'''statement_decl : NUMBER ID
 						| NUMBER ID IGUAL expression'''
@@ -1077,10 +1144,8 @@ def Sintaxer(lx, tokens, textoPrograma):
 		'''statement : IF expression THEN statement_list ELSE statement_list END
 					| IF expression THEN statement_list END'''
 		if len(p) == 8:
-			print('1')
 			p[0] = instruccion_IF(p[2],p[4],p[6])
 		elif len(p)==6:
-			print('2')
 			p[0] = instruccion_IF(p[2],p[4],None)
 	
 	def p_FOR(p):
