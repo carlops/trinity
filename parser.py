@@ -12,6 +12,8 @@ import ply.yacc as yacc
 import re
 import sys
 
+TFunciones = {}
+
 class Function:
 	def __init__(self,Identificador, parametros, tipo, instrucciones,siguiente):
 		self.Identificador = Identificador
@@ -20,7 +22,12 @@ class Function:
 		self.instrucciones = instrucciones
 		self.siguiente= siguiente
 		self.diccionario={}
-		self.diccionario=self.declaraciones.getDict();
+		self.diccionario=self.parametros.getDict();
+		if  TFunciones.has_key(self.Identificador.getValor()):
+			print ("Error: funcion '{}' ya declarada".format(self.Identificador.getValor()))
+			exit(16)
+		else:
+			TFunciones[self.Identificador.getValor()] = Alcance(self.Identificador,self.diccionario,None)
 		
 	def show(self, depth):
 		print('  '*depth + 'FUNCTION:')
@@ -38,6 +45,8 @@ class Function:
 		scope = Alcance(self.Identificador,self.diccionario,tabla)
 		self.parametros.check(scope)
 		self.instrucciones.check(scope)
+		#print(self.siguiente.Identificador.getValor())
+		#print TFunciones
 		self.siguiente.check(scope)
 		if tabla==None:
 			scope.Mostrar()
@@ -52,7 +61,8 @@ class Program:
 		print 'END'
 		
 	def check(self,tabla):
-		self.cuerpo.check(tabla)
+		if self.cuerpo!=None:
+			self.cuerpo.check(tabla)
 		
 class Statement:
 	pass
@@ -240,7 +250,8 @@ class instruccion_IF(Statement):
 		if not isinstance(tipo,TBool):
 			print ("Error: condicion de IF, esperado tipo 'Booleano' encontrado tipo '{}'".format(tipo.tipo))
 			exit(12)
-		self.instrucciones.check(tabla)
+		if self.instrucciones != None:
+			self.instrucciones.check(tabla)
 		if self.instruccionesElse != None:
 			self.instruccionesElse.check(tabla)
 			
@@ -319,6 +330,9 @@ class Return(Statement):
 	def show(self, depth):
 		print('  '*depth + 'Return:')
 		self.statement.show(depth + 1)
+		
+	def check(self, tabla):
+		self.statement.check(tabla)
 		
 #------------------------------------------------------------------
 class Expresion(object):
@@ -582,7 +596,7 @@ class Asignar_Matriz_Elem(Statement):
 			#exit(10)
 		ladoDer = self.expresion.check(tabla)
 		if not isinstance(ladoDer,TNum):
-			print('Error: Esperado tipo numerico y encontrado '+ ladoDer.tipo)
+			print("Error: asginacion a matriz esperado tipo 'Numerico' y encontrado "+ ladoDer.tipo)
 			exit(10)
 		
 class Transpuesta(Expresion):
@@ -630,7 +644,24 @@ class String(Expresion):
 		
 	def check(self,tabla):
 		pass
-
+	
+##### TAL VEZ SIRVA ESTOOOOO ya tienen unas p_funciones y tal
+class LiteralFuncion(Expresion):
+	def __init__(self,Identificador,parametros):
+		self.Identificador = Identificador
+		self.parametros = parametros
+		
+	def check(self,tablaF):
+		if TFunciones.has_key(self.Identificador.getValor()):
+			pass
+		pass
+	
+class ParametrosFuncion(Expresion):
+	def __init__(self,AnStatement,ManyStatements):
+		self.AnStatement = AnStatement
+		self.ManyStatements = ManyStatements
+		
+#--------------- DECLACARACIONES
 class Declaracion(Statement): 
 	def __init__(self,nombre,tipo,expresion):
 		self.tipo = tipo
@@ -866,12 +897,14 @@ def Sintaxer(lx, tokens, textoPrograma):
 	
 	def p_program(p):
 		'''program : PROGRAM statement_list END PUNTOYCOMA
-			| FUNCTION ID PARENTESISABRE statement_decl_param PARENTESISCIERRA RETURN type BEGIN function_statement_list END PUNTOYCOMA program'''
+			| FUNCTION ID PARENTESISABRE statement_decl_param PARENTESISCIERRA RETURN type BEGIN function_statement_list END PUNTOYCOMA program
+			| PROGRAM END PUNTOYCOMA'''
 		if len(p)==5:
 			p[0] = Program(p[2])
-		else:
+		elif len(p)==13:
 			p[0] = Function(Variable(p[2]), p[4], p[7],p[9],p[12])
-			
+		else:
+			p[0] = Program(None)
 	#-----------------------------------------------------------------------------------
 	### FUNCTION statements
 	
@@ -883,6 +916,22 @@ def Sintaxer(lx, tokens, textoPrograma):
 		#else:
 			#p[0] = Function(Variable(p[2]), p[4], p[7],p[9],p[12])
 	
+	def p_function_call(p):
+		'''expression : ID PARENTESISABRE parametro_funcion PARENTESISCIERRA'''
+		p[0] = LiteralFuncion(Variable(p[1]),p[3])
+		
+	def p_bloque_function(p):
+		'function_statement : USE statement_decl_list IN function_statement_list END'
+		p[0] = Bloque(p[2],p[4])
+		
+	def p_parametro_function(p):
+		"""parametro_funcion : expression
+					| expression COMA parametro_funcion"""
+		if len(p)==2:
+			p[0] = ParametrosFuncion(p[1],None)
+		else:
+			p[0] = ParametrosFuncion(p[1],p[3])
+			
 	def p_function_statement_list(p):
 		'''function_statement_list : function_statement PUNTOYCOMA
 					| function_statement PUNTOYCOMA function_statement_list'''
@@ -894,7 +943,11 @@ def Sintaxer(lx, tokens, textoPrograma):
 	def p_function_RETURN(p):
 		'function_statement : RETURN expression'
 		p[0] = Return(p[2])
-	
+		
+	def p_function_statement_expresion(p):
+		'''function_statement : expression'''
+		p[0]=p[1]
+		
 	def p_function_statement_READ(p):
 		'function_statement : READ ID'
 		p[0] = Read(Variable(p[2]))
@@ -916,8 +969,10 @@ def Sintaxer(lx, tokens, textoPrograma):
 		'''function_statement : IF expression THEN function_statement_list ELSE function_statement_list END
 					| IF expression THEN function_statement_list END'''
 		if len(p) == 8:
+			print('1')
 			p[0] = instruccion_IF(p[2],p[4],p[6])
-		else:
+		elif len(p)==6:
+			print('2')
 			p[0] = instruccion_IF(p[2],p[4],None)
 	
 	def p_fuction_FOR(p):
@@ -1022,8 +1077,10 @@ def Sintaxer(lx, tokens, textoPrograma):
 		'''statement : IF expression THEN statement_list ELSE statement_list END
 					| IF expression THEN statement_list END'''
 		if len(p) == 8:
+			print('1')
 			p[0] = instruccion_IF(p[2],p[4],p[6])
-		else:
+		elif len(p)==6:
+			print('2')
 			p[0] = instruccion_IF(p[2],p[4],None)
 	
 	def p_FOR(p):
@@ -1166,7 +1223,6 @@ def Sintaxer(lx, tokens, textoPrograma):
 		'expression : PARENTESISABRE expression PARENTESISCIERRA'
 		p[0] = Agrupadores(p[2],'Abre Parentesis','Cierra Parentesis')
 		
-	
 	def p_parametros_impresion(p):
 		'''parametros_impresion : expression
 					| string
