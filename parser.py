@@ -32,6 +32,7 @@ class Function:
 			if self.parametros != None:
 				lista = self.parametros.getParam([])
 			
+			print tipo
 			if self.tipo == 'number':
 				self.tipo = TNum('0')
 			elif self.tipo == 'boolean':
@@ -328,7 +329,8 @@ class Read(Statement):
 		print ('  '*depth + 'Lectura:')
 		self.Identificador.show(depth+1)
 	def check(self,tabla):
-		if isinstance(self.Identificador,TMatrix):
+		tipo = self.Identificador.check(tabla)
+		if isinstance(tipo,TMatrix):
 			print ("Error: invalida operacion con 'read' identificador del tipo 'Matriz'")
 			exit(14)
 		
@@ -514,19 +516,20 @@ class OperacionBinariaIgualdad(OperacionBinaria):
 	
 	def equals(self,izq,der,operador):
 		if isinstance(izq,der.__class__):
-			return TBool('true')
-			#if isinstance(der,TMatrix):
-				#filader=der.getTamFila().getValor()
-				#filaizq=izq.getTamFila().getValor()
-				#colder=der.getTamCol().getValor()
-				#colizq=izq.getTamCol().getValor()
+			#return TBool('true')
+			if isinstance(der,TMatrix):
+				filader=der.getTamFila()
+				filaizq=izq.getTamFila()
+				colder=der.getTamCol()
+				colizq=izq.getTamCol()
 				
-				#if filader==filaizq and colder==colizq:
-					#return TBool('true')
-				#else
-					#print("")
-			#else:
-				#return TBool('true')
+				if filader==filaizq and colder==colizq:
+					return TBool('true')
+				else:
+					print("Error al comparar matrices, dimensiones inadecuadas")
+					exit(16)
+			else:
+				return TBool('true')
 		else:
 			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
 			exit(6)
@@ -595,6 +598,7 @@ class Asignar_Matriz_Elem(Statement):
 		ladoIzq = self.Identificador.check(tabla)
 		if not isinstance(ladoIzq,TMatrix):
 			print('Error: Esperado tipo matriz y encontrado '+ ladoIzq.tipo)
+			exit(10)
 		self.proyeccion.check(tabla)#Verifica que sean numericos
 		#error=False
 		#print parametros
@@ -698,6 +702,16 @@ class ParametrosFuncion(Expresion):
 			if param[ind+1].tipo != x.tipo:
 				print("Error: invalido pase de parametro en invocacion a funcion, esperado tipo '{}' encontrado tipo '{}'".format(param[ind+1].tipo, x.tipo))
 				exit(17)
+			if isinstance(x,TMatrix):
+				filaparam=param[ind+1].getTamFila()
+				filax=x.getTamFila()
+				colparam=param[ind+1].getTamCol()
+				colx=x.getTamCol()
+				
+				if filaparam != filax or colparam != colx:
+					print("Error: invalido pase de parametros en invacion a funcion, matriz proporsionada de dimensiones invalidas")
+					exit(17)
+					
 		return param[0] 
 	
 		
@@ -745,6 +759,55 @@ class Declaracion(Statement):
 	def getValor(self):
 		return self.nombre.valor
 
+class Type(Statement):
+	def __init__(self,tipo,fila,col):
+		self.tipo = tipo
+		self.fila = fila
+		self.der = col
+	
+	def show(self,depth):
+		pass
+	
+	def check(self,tabla):
+		if self.tipo == 'number':
+			return TNum('0')
+		elif self.tipo == 'boolean':
+			return TBool('false')
+		else:
+			if  (self.fila!=None) and (isinstance(self.fila,LiteralNumerico)):
+				if '.' in (self.fila.check(tabla).getValor()):
+					print('Error: invalido retorno de funcion, parametro de matriz esperado tipo Entero')
+					exit(21)
+				else:
+					if int(self.fila.check(tabla).getValor()) <1:
+						print('Error: invalido retorno de funcion, la cantidad de filas debe ser positiva')
+						exit(21)
+			else:
+				print('Error: invalido retorno de funcion, esperado tipo Numerico en parametro')
+				exit(21)
+				
+			if (self.col!=None) and isinstance(self.col,LiteralNumerico):
+				if '.' in (self.col.check(tabla).getValor()):
+					print('Error: invalido retorno de funcion, parametro de matriz esperado tipo Entero')
+					exit(21)
+				else:
+					if int(self.col.check(tabla).getValor()) <1:
+						print('Error: invalido retorno de funcion, la cantidad de columnas debe ser positiva')
+						exit(21)
+			else:
+				print('Error: invalido retorno de funcion, esperado tipo Numerico en parametro')
+				exit(21)
+				
+			if self.tipo == 'matrix':
+				return TMatrix(self.fila.valor,self.col.valor)
+			elif self.tipo == 'col':
+				return TMatrix(self.fila.valor,'1')
+			elif self.tipo == 'row':
+				return TMatrix('1',self.col.valor)
+			else:
+				print("Error: tipo de retorno invalido: {}".format(tipo))
+				exit(21)
+		
 class DeclaracionMatriz(Statement):
 	def __init__(self,Identificador,fila,col,expresion):
 		self.Identificador = Identificador

@@ -1,0 +1,1322 @@
+#!/usr/bin/env bash
+
+trinity="${1:-./trinity}"
+quiet="${quiet:-false}"
+
+function main() {
+  rm -rf   shouldpass contexterr shouldfail
+  mkdir -p shouldpass contexterr shouldfail
+
+  awk 'BEGIN { FS = " @ "; NR = 39 }; /^\s*[^#]/ { print $3 > $2 "/" NR "-" $1 }'
+
+  shouldpass="$(ls shouldpass | sort -n | sed 's@^@shouldpass/@')"
+  contexterr="$(ls contexterr | sort -n | sed 's@^@contexterr/@')"
+  shouldfail="$(ls shouldfail | sort -n | sed 's@^@shouldfail/@')"
+
+  total=0
+  expect_pass=0; passed_as_expected=0; for test in ${shouldpass}              ; do echo -ne "\r\e[K[${total}] Running: ${test}…"; if ! "${trinity}" "${test}" &> /dev/null; then [[ "${quiet}" == 'true' ]] || echo ' unexpected failure'; else passed_as_expected="$((${passed_as_expected} + 1))"; fi; total="$((${total} + 1))"; expect_pass="$((${expect_pass} + 1))"; done
+  expect_fail=0; failed_as_expected=0; for test in ${shouldfail} ${contexterr}; do echo -ne "\r\e[K[${total}] Running: ${test}…"; if   "${trinity}" "${test}" &> /dev/null; then [[ "${quiet}" == 'true' ]] || echo ' unexpected pass'   ; else failed_as_expected="$((${failed_as_expected} + 1))"; fi; total="$((${total} + 1))"; expect_fail="$((${expect_fail} + 1))"; done
+  good="$((${passed_as_expected} + ${failed_as_expected}))"
+  total="$((${expect_pass} + ${expect_fail}))"
+
+  column -t <<EOF
+
+total tests: ${total}
+good tests: ${good} ($((100*${good}/${total}))%)
+bad tests: $((${total} - ${good})) ($((100*(${total}-${good})/${total}))%)
+expected passes:   ${passed_as_expected}/${expect_pass} ($((100*${passed_as_expected}/${expect_pass}))%)
+expected failures: ${failed_as_expected}/${expect_fail} ($((100*${failed_as_expected}/${expect_fail}))%)
+EOF
+
+  if [[ ${good} == ${total} ]]
+  then
+    exit 0
+  else
+    exit 1
+  fi
+}
+
+main <<'EOF'
+
+§2.2¶1 @ shouldpass @ program true                    ; end;
+§2.2¶1 @ shouldpass @ program false                   ; end;
+§2.2¶1 @ shouldpass @ program use boolean  foo; in end; end;
+
+§2.2¶1 @ shouldfail @ program use bool     foo    ; in end; end;
+§2.2¶1 @ shouldfail @ program use booleano foo    ; in end; end;
+§2.2¶1 @ shouldfail @ program use true     foo    ; in end; end;
+§2.2¶1 @ shouldfail @ program use false    foo    ; in end; end;
+§2.2¶1 @ shouldfail @ program use boolean  boolean; in end; end;
+§2.2¶1 @ shouldfail @ program use boolean  true   ; in end; end;
+§2.2¶1 @ shouldfail @ program use boolean  false  ; in end; end;
+
+
+
+§2.2¶2 @ shouldpass @ program use number   foo; in end; end;
+
+§2.2¶2 @ shouldfail @ program use numero   foo; in end; end;
+§2.2¶2 @ shouldfail @ program use numerico foo; in end; end;
+§2.2¶2 @ shouldfail @ program use num      foo; in end; end;
+§2.2¶2 @ shouldfail @ program use 42       foo; in end; end;
+
+
+
+§2.2¶3 @ shouldpass @ program 42  ; end;
+§2.2¶3 @ shouldpass @ program 4.2 ; end;
+§2.2¶3 @ shouldpass @ program 0.42; end;
+
+
+
+§2.2¶4 @ shouldpass @ program use matrix(  2,   2)    foo   ; in end; end;
+
+§2.2¶4 @ contexterr @ program use matrix( 42,   0)    foo   ; in end; end;
+§2.2¶4 @ contexterr @ program use matrix(  0,  42)    foo   ; in end; end;
+§2.2¶4 @ contexterr @ program use matrix(  0,   0)    foo   ; in end; end;
+§2.2¶4 @ contexterr @ program use matrix(4.2, 4.2)    foo   ; in end; end;
+
+§2.2¶4 @ shouldfail @ program use matrix              foo   ; in end; end;
+§2.2¶4 @ shouldfail @ program use matrix(        )    foo   ; in end; end;
+§2.2¶4 @ shouldfail @ program use matrix(  r,   c)    foo   ; in end; end;
+§2.2¶4 @ shouldfail @ program use matrix( 42,  42)    matrix; in end; end;
+§2.2¶4 @ shouldfail @ program use { 42 }              foo   ; in end; end;
+§2.2¶4 @ shouldfail @ program use matrix(42 + 42, 42) foo   ; in end; end;
+§2.2¶4 @ shouldfail @ program use matrix(42, 42 + 42) foo   ; in end; end;
+§2.2¶4 @ shouldfail @ program use matrix(42, 42, 42)  foo   ; in end; end;
+
+
+
+§2.2¶5 @ shouldpass @ program use row( 42)     foo; in end; end;
+§2.2¶5 @ shouldpass @ program use col( 42)     foo; in end; end;
+
+§2.2¶5 @ contexterr @ program use row(4.2)     foo; in end; end;
+§2.2¶5 @ contexterr @ program use col(4.2)     foo; in end; end;
+§2.2¶5 @ contexterr @ program use row(  0)     foo; in end; end;
+§2.2¶5 @ contexterr @ program use col(  0)     foo; in end; end;
+
+§2.2¶5 @ shouldfail @ program use row          foo; in end; end;
+§2.2¶5 @ shouldfail @ program use col          foo; in end; end;
+§2.2¶5 @ shouldfail @ program use row(   )     foo; in end; end;
+§2.2¶5 @ shouldfail @ program use col(   )     foo; in end; end;
+§2.2¶5 @ shouldfail @ program use row(  c)     foo; in end; end;
+§2.2¶5 @ shouldfail @ program use col(  r)     foo; in end; end;
+§2.2¶5 @ shouldfail @ program use row( 42)     row; in end; end;
+§2.2¶5 @ shouldfail @ program use col( 42)     col; in end; end;
+§2.2¶5 @ shouldfail @ program use row( 42, 42) foo; in end; end;
+§2.2¶5 @ shouldfail @ program use col( 42, 42) foo; in end; end;
+§2.2¶5 @ shouldfail @ program use row(42 + 42) foo; in end; end;
+§2.2¶5 @ shouldfail @ program use col(42 + 42) foo; in end; end;
+
+
+
+§2.2¶6 @ shouldpass @ program { 42                                   }; end;
+§2.2¶6 @ shouldpass @ program { 42, 42                               }; end;
+§2.2¶6 @ shouldpass @ program { 42, 42, 42                           }; end;
+§2.2¶6 @ shouldpass @ program { 42         : 42                      }; end;
+§2.2¶6 @ shouldpass @ program { 42         : 42         : 42         }; end;
+§2.2¶6 @ shouldpass @ program { 42, 42     : 42, 42                  }; end;
+§2.2¶6 @ shouldpass @ program { 42, 42, 42 : 42, 42, 42 : 42, 42, 42 }; end;
+§2.2¶6 @ shouldpass @ program { 42 + 42                              }; end;
+§2.2¶6 @ shouldpass @ program { 42 + 42, 42 + 42                     }; end;
+
+§2.2¶6 @ contexterr @ program { 42, 42, 42 : 42, 42     : 42, 42, 42 }; end;
+§2.2¶6 @ contexterr @ program { foo }                                 ; end;
+§2.2¶6 @ contexterr @ program { foo, foo }                            ; end;
+§2.2¶6 @ contexterr @ program { { 42 } }                              ; end;
+§2.2¶6 @ contexterr @ program { { { 42 } } }                          ; end;
+
+
+
+§2.2¶8 @ contexterr @ program 42 /= { 42 }; end;
+
+
+
+§2.3¶1 @ shouldpass @ program (42)          ; end;
+§2.3¶1 @ shouldpass @ program ((42))        ; end;
+§2.3¶1 @ shouldpass @ program (((42)))      ; end;
+§2.3¶1 @ shouldpass @ program (42 + 42)     ; end;
+§2.3¶1 @ shouldpass @ program ({ 42 })      ; end;
+§2.3¶1 @ shouldpass @ program 42 + (42)     ; end;
+§2.3¶1 @ shouldpass @ program (42 + 42) + 42; end;
+
+§2.3¶1 @ shouldfail @ program (42  ; end;
+§2.3¶1 @ shouldfail @ program 42)  ; end;
+§2.3¶1 @ shouldfail @ program ((42); end;
+§2.3¶1 @ shouldfail @ program (42)); end;
+
+
+
+§2.3.1¶1 @ shouldpass @ program not true        ; end;
+§2.3.1¶1 @ shouldpass @ program not false       ; end;
+§2.3.1¶1 @ shouldpass @ program not not true    ; end;
+§2.3.1¶1 @ shouldpass @ program not (not true)  ; end;
+§2.3.1¶1 @ shouldpass @ program not not not true; end;
+
+§2.3.1¶1 @ contexterr @ program not foo      ; end;
+§2.3.1¶1 @ contexterr @ program not (not foo); end;
+§2.3.1¶1 @ contexterr @ program not not foo  ; end;
+§2.3.1¶1 @ contexterr @ program not 42       ; end;
+
+§2.3.1¶1 @ shouldfail @ program not    ; end;
+§2.3.1¶1 @ shouldfail @ program not not; end;
+
+
+
+§2.3.1¶2 @ shouldpass @ program true          & true                ; end;
+§2.3.1¶2 @ shouldpass @ program true          & (true & true)       ; end;
+§2.3.1¶2 @ shouldpass @ program (true & true) & true                ; end;
+§2.3.1¶2 @ shouldpass @ program true          & true          & true; end;
+§2.3.1¶2 @ shouldpass @ program true          | true                ; end;
+§2.3.1¶2 @ shouldpass @ program true          | (true | true)       ; end;
+§2.3.1¶2 @ shouldpass @ program (true | true) | true                ; end;
+§2.3.1¶2 @ shouldpass @ program true          | true          | true; end;
+§2.3.1¶2 @ shouldpass @ program (true & true) | true                ; end;
+§2.3.1¶2 @ shouldpass @ program (true | true) & true                ; end;
+§2.3.1¶2 @ shouldpass @ program true          & true          | true; end;
+§2.3.1¶2 @ shouldpass @ program true          | true          & true; end;
+§2.3.1¶2 @ shouldpass @ program (not true)    | true                ; end;
+§2.3.1¶2 @ shouldpass @ program true          | (not true)          ; end;
+§2.3.1¶2 @ shouldpass @ program not true      | true                ; end;
+§2.3.1¶2 @ shouldpass @ program true          | not true            ; end;
+§2.3.1¶2 @ shouldpass @ program (not true)    & true                ; end;
+§2.3.1¶2 @ shouldpass @ program true          & (not true)          ; end;
+§2.3.1¶2 @ shouldpass @ program not true      & true                ; end;
+§2.3.1¶2 @ shouldpass @ program true          & not true            ; end;
+
+§2.3.1¶2 @ contexterr @ program 42   & true; end;
+§2.3.1¶2 @ contexterr @ program 42   | true; end;
+§2.3.1¶2 @ contexterr @ program true | 42  ; end;
+§2.3.1¶2 @ contexterr @ program true & 42  ; end;
+
+§2.3.1¶2 @ shouldfail @ program true &     ; end;
+§2.3.1¶2 @ shouldfail @ program true |     ; end;
+§2.3.1¶2 @ shouldfail @ program      & true; end;
+§2.3.1¶2 @ shouldfail @ program      | true; end;
+§2.3.1¶2 @ shouldfail @ program not  & true; end;
+§2.3.1¶2 @ shouldfail @ program not  | true; end;
+
+
+
+§2.3.1¶5 @ shouldpass @ program      true           == true           ; end;
+§2.3.1¶5 @ shouldpass @ program      true           == false          ; end;
+§2.3.1¶5 @ shouldpass @ program      false          == true           ; end;
+§2.3.1¶5 @ shouldpass @ program      false          == false          ; end;
+§2.3.1¶5 @ shouldpass @ program      42             == 42             ; end;
+§2.3.1¶5 @ shouldpass @ program      42 + 42        == 42             ; end;
+§2.3.1¶5 @ shouldpass @ program      42             == 42 + 42        ; end;
+§2.3.1¶5 @ shouldpass @ program      { 1 }          == { 1 }          ; end;
+§2.3.1¶5 @ shouldpass @ program      not true       == true           ; end;
+§2.3.1¶5 @ shouldpass @ program      (not true)     == true           ; end;
+§2.3.1¶5 @ shouldpass @ program      true           == not true       ; end;
+§2.3.1¶5 @ shouldpass @ program      true           == (not true)     ; end;
+§2.3.1¶5 @ shouldpass @ program      (true == true) == true           ; end;
+§2.3.1¶5 @ shouldpass @ program      true           == (true == true) ; end;
+§2.3.1¶5 @ shouldpass @ program      true           /= true           ; end;
+§2.3.1¶5 @ shouldpass @ program      true           /= false          ; end;
+§2.3.1¶5 @ shouldpass @ program      false          /= true           ; end;
+§2.3.1¶5 @ shouldpass @ program      false          /= false          ; end;
+§2.3.1¶5 @ shouldpass @ program      42             /= 42             ; end;
+§2.3.1¶5 @ shouldpass @ program      42 + 42        /= 42             ; end;
+§2.3.1¶5 @ shouldpass @ program      42             /= 42 + 42        ; end;
+§2.3.1¶5 @ shouldpass @ program      { 1 }          /= { 1 }          ; end;
+§2.3.1¶5 @ shouldpass @ program      not true       /= true           ; end;
+§2.3.1¶5 @ shouldpass @ program      (not true)     /= true           ; end;
+§2.3.1¶5 @ shouldpass @ program      true           /= not true       ; end;
+§2.3.1¶5 @ shouldpass @ program      true           /= (not true)     ; end;
+§2.3.1¶5 @ shouldpass @ program      (true == true) /= true           ; end;
+§2.3.1¶5 @ shouldpass @ program      true           /= (true == true) ; end;
+§2.3.1¶5 @ shouldpass @ program      (true /= true) == true           ; end;
+§2.3.1¶5 @ shouldpass @ program      true           == (true /= true) ; end;
+§2.3.1¶5 @ shouldpass @ program not (true           == true          ); end;
+§2.3.1¶5 @ shouldpass @ program not (true           == false         ); end;
+§2.3.1¶5 @ shouldpass @ program not (false          == true          ); end;
+§2.3.1¶5 @ shouldpass @ program not (false          == false         ); end;
+§2.3.1¶5 @ shouldpass @ program not (42             == 42            ); end;
+§2.3.1¶5 @ shouldpass @ program not (42 + 42        == 42            ); end;
+§2.3.1¶5 @ shouldpass @ program not (42             == 42 + 42       ); end;
+§2.3.1¶5 @ shouldpass @ program not ({ 1 }          == { 1 }         ); end;
+§2.3.1¶5 @ shouldpass @ program not (not true       == true          ); end;
+§2.3.1¶5 @ shouldpass @ program not ((not true)     == true          ); end;
+§2.3.1¶5 @ shouldpass @ program not (true           == not true      ); end;
+§2.3.1¶5 @ shouldpass @ program not (true           == (not true)    ); end;
+§2.3.1¶5 @ shouldpass @ program not ((true == true) == true          ); end;
+§2.3.1¶5 @ shouldpass @ program not (true           == (true == true)); end;
+§2.3.1¶5 @ shouldpass @ program not (true           /= true          ); end;
+§2.3.1¶5 @ shouldpass @ program not (true           /= false         ); end;
+§2.3.1¶5 @ shouldpass @ program not (false          /= true          ); end;
+§2.3.1¶5 @ shouldpass @ program not (false          /= false         ); end;
+§2.3.1¶5 @ shouldpass @ program not (42             /= 42            ); end;
+§2.3.1¶5 @ shouldpass @ program not (42 + 42        /= 42            ); end;
+§2.3.1¶5 @ shouldpass @ program not (42             /= 42 + 42       ); end;
+§2.3.1¶5 @ shouldpass @ program not ({ 1 }          /= { 1 }         ); end;
+§2.3.1¶5 @ shouldpass @ program not (not true       /= true          ); end;
+§2.3.1¶5 @ shouldpass @ program not ((not true)     /= true          ); end;
+§2.3.1¶5 @ shouldpass @ program not (true           /= not true      ); end;
+§2.3.1¶5 @ shouldpass @ program not (true           /= (not true)    ); end;
+§2.3.1¶5 @ shouldpass @ program not ((true == true) /= true          ); end;
+§2.3.1¶5 @ shouldpass @ program not (true           /= (true == true)); end;
+§2.3.1¶5 @ shouldpass @ program not ((true /= true) == true          ); end;
+§2.3.1¶5 @ shouldpass @ program not (true           == (true /= true)); end;
+
+§2.3.1¶5 @ contexterr @ program      foo            == foo        ; end;
+§2.3.1¶5 @ contexterr @ program      foo            /= foo        ; end;
+§2.3.1¶5 @ contexterr @ program      true           == 42         ; end;
+§2.3.1¶5 @ contexterr @ program      42             == true       ; end;
+§2.3.1¶5 @ contexterr @ program      42             == { 42 }     ; end;
+§2.3.1¶5 @ contexterr @ program      { 42 }         == 42         ; end;
+§2.3.1¶5 @ contexterr @ program      { 42, 42 }     == { 42 }     ; end;
+§2.3.1¶5 @ contexterr @ program      { 42 }         == { 42, 42 } ; end;
+§2.3.1¶5 @ contexterr @ program      true           /= 42         ; end;
+§2.3.1¶5 @ contexterr @ program      42             /= true       ; end;
+§2.3.1¶5 @ contexterr @ program      42             /= { 42 }     ; end;
+§2.3.1¶5 @ contexterr @ program      { 42 }         /= 42         ; end;
+§2.3.1¶5 @ contexterr @ program      { 42, 42 }     /= { 42 }     ; end;
+§2.3.1¶5 @ contexterr @ program      { 42 }         /= { 42, 42 } ; end;
+§2.3.1¶5 @ contexterr @ program not (foo            == foo       ); end;
+§2.3.1¶5 @ contexterr @ program not (foo            /= foo       ); end;
+§2.3.1¶5 @ contexterr @ program not (true           == 42        ); end;
+§2.3.1¶5 @ contexterr @ program not (42             == true      ); end;
+§2.3.1¶5 @ contexterr @ program not (42             == { 42 }    ); end;
+§2.3.1¶5 @ contexterr @ program not ({ 42 }         == 42        ); end;
+§2.3.1¶5 @ contexterr @ program not ({ 42, 42 }     == { 42 }    ); end;
+§2.3.1¶5 @ contexterr @ program not ({ 42 }         == { 42, 42 }); end;
+§2.3.1¶5 @ contexterr @ program not (true           /= 42        ); end;
+§2.3.1¶5 @ contexterr @ program not (42             /= true      ); end;
+§2.3.1¶5 @ contexterr @ program not (42             /= { 42 }    ); end;
+§2.3.1¶5 @ contexterr @ program not ({ 42 }         /= 42        ); end;
+§2.3.1¶5 @ contexterr @ program not ({ 42, 42 }     /= { 42 }    ); end;
+§2.3.1¶5 @ contexterr @ program not ({ 42 }         /= { 42, 42 }); end;
+
+§2.3.1¶5 @ shouldfail @ program      ==     ; end;
+§2.3.1¶5 @ shouldfail @ program      /=     ; end;
+§2.3.1¶5 @ shouldfail @ program      == true; end;
+§2.3.1¶5 @ shouldfail @ program true ==     ; end;
+§2.3.1¶5 @ shouldfail @ program      /= true; end;
+§2.3.1¶5 @ shouldfail @ program true /=     ; end;
+§2.3.1¶5 @ shouldfail @ program true == true == true; end;
+§2.3.1¶5 @ shouldfail @ program true == true /= true; end;
+§2.3.1¶5 @ shouldfail @ program true /= true == true; end;
+§2.3.1¶5 @ shouldfail @ program true /= true /= true; end;
+
+
+
+§2.3.1¶7 @ shouldpass @ program      42      <  42      ; end;
+§2.3.1¶7 @ shouldpass @ program      42      >  42      ; end;
+§2.3.1¶7 @ shouldpass @ program      42      <= 42      ; end;
+§2.3.1¶7 @ shouldpass @ program      42      >= 42      ; end;
+§2.3.1¶7 @ shouldpass @ program      42 + 42 <  42      ; end;
+§2.3.1¶7 @ shouldpass @ program      42 + 42 >  42      ; end;
+§2.3.1¶7 @ shouldpass @ program      42 + 42 <= 42      ; end;
+§2.3.1¶7 @ shouldpass @ program      42 + 42 >= 42      ; end;
+§2.3.1¶7 @ shouldpass @ program      42      <  42 + 42 ; end;
+§2.3.1¶7 @ shouldpass @ program      42      >  42 + 42 ; end;
+§2.3.1¶7 @ shouldpass @ program      42      <= 42 + 42 ; end;
+§2.3.1¶7 @ shouldpass @ program      42      >= 42 + 42 ; end;
+§2.3.1¶7 @ shouldpass @ program not (42      <  42     ); end;
+§2.3.1¶7 @ shouldpass @ program not (42      >  42     ); end;
+§2.3.1¶7 @ shouldpass @ program not (42      <= 42     ); end;
+§2.3.1¶7 @ shouldpass @ program not (42      >= 42     ); end;
+§2.3.1¶7 @ shouldpass @ program not (42 + 42 <  42     ); end;
+§2.3.1¶7 @ shouldpass @ program not (42 + 42 >  42     ); end;
+§2.3.1¶7 @ shouldpass @ program not (42 + 42 <= 42     ); end;
+§2.3.1¶7 @ shouldpass @ program not (42 + 42 >= 42     ); end;
+§2.3.1¶7 @ shouldpass @ program not (42      <  42 + 42); end;
+§2.3.1¶7 @ shouldpass @ program not (42      >  42 + 42); end;
+§2.3.1¶7 @ shouldpass @ program not (42      <= 42 + 42); end;
+§2.3.1¶7 @ shouldpass @ program not (42      >= 42 + 42); end;
+
+§2.3.1¶7 @ contexterr @ program      42      <  true   ; end;
+§2.3.1¶7 @ contexterr @ program      42      >  true   ; end;
+§2.3.1¶7 @ contexterr @ program      42      <= true   ; end;
+§2.3.1¶7 @ contexterr @ program      42      >= true   ; end;
+§2.3.1¶7 @ contexterr @ program      true    <  42     ; end;
+§2.3.1¶7 @ contexterr @ program      true    >  42     ; end;
+§2.3.1¶7 @ contexterr @ program      true    <= 42     ; end;
+§2.3.1¶7 @ contexterr @ program      true    >= 42     ; end;
+§2.3.1¶7 @ contexterr @ program      { 42 }  <  42     ; end;
+§2.3.1¶7 @ contexterr @ program      { 42 }  >  42     ; end;
+§2.3.1¶7 @ contexterr @ program      { 42 }  <= 42     ; end;
+§2.3.1¶7 @ contexterr @ program      { 42 }  >= 42     ; end;
+§2.3.1¶7 @ contexterr @ program      42      <  { 42 } ; end;
+§2.3.1¶7 @ contexterr @ program      42      >  { 42 } ; end;
+§2.3.1¶7 @ contexterr @ program      42      <= { 42 } ; end;
+§2.3.1¶7 @ contexterr @ program      42      >= { 42 } ; end;
+§2.3.1¶7 @ contexterr @ program not (42      <  true  ); end;
+§2.3.1¶7 @ contexterr @ program not (42      >  true  ); end;
+§2.3.1¶7 @ contexterr @ program not (42      <= true  ); end;
+§2.3.1¶7 @ contexterr @ program not (42      >= true  ); end;
+§2.3.1¶7 @ contexterr @ program not (true    <  42    ); end;
+§2.3.1¶7 @ contexterr @ program not (true    >  42    ); end;
+§2.3.1¶7 @ contexterr @ program not (true    <= 42    ); end;
+§2.3.1¶7 @ contexterr @ program not (true    >= 42    ); end;
+§2.3.1¶7 @ contexterr @ program not ({ 42 }  <  42    ); end;
+§2.3.1¶7 @ contexterr @ program not ({ 42 }  >  42    ); end;
+§2.3.1¶7 @ contexterr @ program not ({ 42 }  <= 42    ); end;
+§2.3.1¶7 @ contexterr @ program not ({ 42 }  >= 42    ); end;
+§2.3.1¶7 @ contexterr @ program not (42      <  { 42 }); end;
+§2.3.1¶7 @ contexterr @ program not (42      >  { 42 }); end;
+§2.3.1¶7 @ contexterr @ program not (42      <= { 42 }); end;
+§2.3.1¶7 @ contexterr @ program not (42      >= { 42 }); end;
+
+§2.3.1¶7 @ shouldfail @ program        <        ; end;
+§2.3.1¶7 @ shouldfail @ program        >        ; end;
+§2.3.1¶7 @ shouldfail @ program        <=       ; end;
+§2.3.1¶7 @ shouldfail @ program        >=       ; end;
+§2.3.1¶7 @ shouldfail @ program 42     <        ; end;
+§2.3.1¶7 @ shouldfail @ program 42     >        ; end;
+§2.3.1¶7 @ shouldfail @ program 42     <=       ; end;
+§2.3.1¶7 @ shouldfail @ program 42     >=       ; end;
+§2.3.1¶7 @ shouldfail @ program        <  42    ; end;
+§2.3.1¶7 @ shouldfail @ program        >  42    ; end;
+§2.3.1¶7 @ shouldfail @ program        <= 42    ; end;
+§2.3.1¶7 @ shouldfail @ program        >= 42    ; end;
+§2.3.1¶7 @ shouldfail @ program 42     <  number; end;
+§2.3.1¶7 @ shouldfail @ program 42     >  number; end;
+§2.3.1¶7 @ shouldfail @ program 42     <= number; end;
+§2.3.1¶7 @ shouldfail @ program 42     >= number; end;
+§2.3.1¶7 @ shouldfail @ program number <  42    ; end;
+§2.3.1¶7 @ shouldfail @ program number >  42    ; end;
+§2.3.1¶7 @ shouldfail @ program number <= 42    ; end;
+§2.3.1¶7 @ shouldfail @ program number >= 42    ; end;
+
+§2.3.1¶7 @ shouldfail @ program 42 <  42 <  42; end;
+§2.3.1¶7 @ shouldfail @ program 42 >  42 >  42; end;
+§2.3.1¶7 @ shouldfail @ program 42 <= 42 <= 42; end;
+§2.3.1¶7 @ shouldfail @ program 42 >= 42 >= 42; end;
+
+
+
+§2.3.2¶1 @ shouldpass @ program 42                + 42               ; end;
+§2.3.2¶1 @ shouldpass @ program 42                - 42               ; end;
+§2.3.2¶1 @ shouldpass @ program (42 + 42)         + 42               ; end;
+§2.3.2¶1 @ shouldpass @ program (42 + 42)         - 42               ; end;
+§2.3.2¶1 @ shouldpass @ program (42 - 42)         + 42               ; end;
+§2.3.2¶1 @ shouldpass @ program (42 - 42)         - 42               ; end;
+§2.3.2¶1 @ shouldpass @ program 42                + (42 + 42)        ; end;
+§2.3.2¶1 @ shouldpass @ program 42                + (42 - 42)        ; end;
+§2.3.2¶1 @ shouldpass @ program 42                - (42 + 42)        ; end;
+§2.3.2¶1 @ shouldpass @ program 42                - (42 - 42)        ; end;
+§2.3.2¶1 @ shouldpass @ program { 42 }            + { 42 }           ; end;
+§2.3.2¶1 @ shouldpass @ program { 42 }            - { 42 }           ; end;
+§2.3.2¶1 @ shouldpass @ program ({ 42 } + { 42 }) + { 42 }           ; end;
+§2.3.2¶1 @ shouldpass @ program ({ 42 } + { 42 }) - { 42 }           ; end;
+§2.3.2¶1 @ shouldpass @ program ({ 42 } - { 42 }) + { 42 }           ; end;
+§2.3.2¶1 @ shouldpass @ program ({ 42 } - { 42 }) - { 42 }           ; end;
+§2.3.2¶1 @ shouldpass @ program { 42 }            + ({ 42 } + { 42 }); end;
+§2.3.2¶1 @ shouldpass @ program { 42 }            + ({ 42 } - { 42 }); end;
+§2.3.2¶1 @ shouldpass @ program { 42 }            - ({ 42 } + { 42 }); end;
+§2.3.2¶1 @ shouldpass @ program { 42 }            - ({ 42 } - { 42 }); end;
+
+§2.3.2¶1 @ contexterr @ program foo               + { 42 }           ; end;
+§2.3.2¶1 @ contexterr @ program foo               - { 42 }           ; end;
+§2.3.2¶1 @ contexterr @ program { 42 }            + foo              ; end;
+§2.3.2¶1 @ contexterr @ program { 42 }            - foo              ; end;
+§2.3.2¶1 @ contexterr @ program foo               + foo              ; end;
+§2.3.2¶1 @ contexterr @ program foo               - foo              ; end;
+§2.3.2¶1 @ contexterr @ program true              + { 42 }           ; end;
+§2.3.2¶1 @ contexterr @ program true              - { 42 }           ; end;
+§2.3.2¶1 @ contexterr @ program { 42 }            + true             ; end;
+§2.3.2¶1 @ contexterr @ program { 42 }            - true             ; end;
+§2.3.2¶1 @ contexterr @ program true              + true             ; end;
+§2.3.2¶1 @ contexterr @ program true              - true             ; end;
+§2.3.2¶1 @ contexterr @ program 42                + { 42 }           ; end;
+§2.3.2¶1 @ contexterr @ program 42                - { 42 }           ; end;
+§2.3.2¶1 @ contexterr @ program { 42 }            + 42               ; end;
+§2.3.2¶1 @ contexterr @ program { 42 }            - 42               ; end;
+
+§2.3.2¶1 @ shouldfail @ program        +       ; end;
+§2.3.2¶1 @ shouldfail @ program 42     +       ; end;
+§2.3.2¶1 @ shouldfail @ program        + 42    ; end;
+§2.3.2¶1 @ shouldfail @ program number + 42    ; end;
+§2.3.2¶1 @ shouldfail @ program 42     + number; end;
+
+
+
+§2.3.2¶2 @ shouldpass @ program   -42       ; end;
+§2.3.2¶2 @ shouldpass @ program  --42       ; end;
+§2.3.2¶2 @ shouldpass @ program ---42       ; end;
+§2.3.2¶2 @ shouldpass @ program   -{ 42 }   ; end;
+§2.3.2¶2 @ shouldpass @ program  --{ 42 }   ; end;
+§2.3.2¶2 @ shouldpass @ program ---{ 42 }   ; end;
+§2.3.2¶2 @ shouldpass @ program   -(42 + 42); end;
+§2.3.2¶2 @ shouldpass @ program   - 42 + 42 ; end;
+§2.3.2¶2 @ shouldpass @ program -42 + -42   ; end;
+§2.3.2¶2 @ shouldpass @ program -42 - -42   ; end;
+
+§2.3.2¶2 @ contexterr @ program   -foo ; end;
+§2.3.2¶2 @ contexterr @ program  --foo ; end;
+§2.3.2¶2 @ contexterr @ program ---foo ; end;
+§2.3.2¶2 @ contexterr @ program   -true; end;
+§2.3.2¶2 @ contexterr @ program  --true; end;
+§2.3.2¶2 @ contexterr @ program ---true; end;
+
+§2.3.2¶2 @ shouldfail @ program   -      ; end;
+§2.3.2¶2 @ shouldfail @ program  --      ; end;
+§2.3.2¶2 @ shouldfail @ program ---      ; end;
+§2.3.2¶2 @ shouldfail @ program   -number; end;
+§2.3.2¶2 @ shouldfail @ program  --number; end;
+§2.3.2¶2 @ shouldfail @ program ---number; end;
+
+
+
+§2.3.2¶3 @ shouldpass @ program 42          * 42         ; end;
+§2.3.2¶3 @ shouldpass @ program (42 * 42)   * 42         ; end;
+§2.3.2¶3 @ shouldpass @ program 42          * (42 * 42)  ; end;
+§2.3.2¶3 @ shouldpass @ program 42          * 42 * 42    ; end;
+§2.3.2¶3 @ shouldpass @ program { 42 }      * { 42 }     ; end;
+§2.3.2¶3 @ shouldpass @ program { 42 , 42 } * { 42 : 42 }; end;
+§2.3.2¶3 @ shouldpass @ program { 42 : 42 } * { 42 , 42 }; end;
+
+§2.3.2¶3 @ contexterr @ program 42          * foo        ; end;
+§2.3.2¶3 @ contexterr @ program foo         * 42         ; end;
+§2.3.2¶3 @ contexterr @ program foo         * foo        ; end;
+§2.3.2¶3 @ contexterr @ program 42          * { 42 }     ; end;
+§2.3.2¶3 @ contexterr @ program { 42 }      * 42         ; end;
+§2.3.2¶3 @ contexterr @ program { 42 : 42 } * { 42 : 42 }; end;
+§2.3.2¶3 @ contexterr @ program { 42 , 42 } * { 42 , 42 }; end;
+§2.3.2¶3 @ contexterr @ program 42          * true       ; end;
+§2.3.2¶3 @ contexterr @ program true        * 42         ; end;
+§2.3.2¶3 @ contexterr @ program true        * true       ; end;
+
+§2.3.2¶3 @ shouldfail @ program        *       ; end;
+§2.3.2¶3 @ shouldfail @ program 42     *       ; end;
+§2.3.2¶3 @ shouldfail @ program        * 42    ; end;
+§2.3.2¶3 @ shouldfail @ program 42     * number; end;
+§2.3.2¶3 @ shouldfail @ program number * 42    ; end;
+
+
+
+§2.3.2¶4 @ shouldpass @ program 42        / 42       ; end;
+§2.3.2¶4 @ shouldpass @ program (42 / 42) / 42       ; end;
+§2.3.2¶4 @ shouldpass @ program 42        / (42 / 42); end;
+§2.3.2¶4 @ shouldpass @ program 42        /  42 / 42 ; end;
+§2.3.2¶4 @ shouldpass @ program 42        % 42       ; end;
+§2.3.2¶4 @ shouldpass @ program (42 % 42) % 42       ; end;
+§2.3.2¶4 @ shouldpass @ program 42        % (42 % 42); end;
+§2.3.2¶4 @ shouldpass @ program 42        %  42 % 42 ; end;
+§2.3.2¶4 @ shouldpass @ program (42 / 42) % 42       ; end;
+§2.3.2¶4 @ shouldpass @ program 42        % (42 / 42); end;
+§2.3.2¶4 @ shouldpass @ program (42 % 42) / 42       ; end;
+§2.3.2¶4 @ shouldpass @ program 42        / (42 % 42); end;
+
+§2.3.2¶4 @ contexterr @ program 42          / foo        ; end;
+§2.3.2¶4 @ contexterr @ program foo         / 42         ; end;
+§2.3.2¶4 @ contexterr @ program foo         / foo        ; end;
+§2.3.2¶4 @ contexterr @ program 42          / { 42 }     ; end;
+§2.3.2¶4 @ contexterr @ program { 42 }      / 42         ; end;
+§2.3.2¶4 @ contexterr @ program { 42 : 42 } / { 42 : 42 }; end;
+§2.3.2¶4 @ contexterr @ program { 42 , 42 } / { 42 , 42 }; end;
+§2.3.2¶4 @ contexterr @ program 42          / true       ; end;
+§2.3.2¶4 @ contexterr @ program true        / 42         ; end;
+§2.3.2¶4 @ contexterr @ program true        / true       ; end;
+§2.3.2¶4 @ contexterr @ program 42          % foo        ; end;
+§2.3.2¶4 @ contexterr @ program foo         % 42         ; end;
+§2.3.2¶4 @ contexterr @ program foo         % foo        ; end;
+§2.3.2¶4 @ contexterr @ program 42          % { 42 }     ; end;
+§2.3.2¶4 @ contexterr @ program { 42 }      % 42         ; end;
+§2.3.2¶4 @ contexterr @ program { 42 : 42 } % { 42 : 42 }; end;
+§2.3.2¶4 @ contexterr @ program { 42 , 42 } % { 42 , 42 }; end;
+§2.3.2¶4 @ contexterr @ program 42          % true       ; end;
+§2.3.2¶4 @ contexterr @ program true        % 42         ; end;
+§2.3.2¶4 @ contexterr @ program true        % true       ; end;
+
+§2.3.2¶4 @ shouldfail @ program        /       ; end;
+§2.3.2¶4 @ shouldfail @ program        %       ; end;
+§2.3.2¶4 @ shouldfail @ program 42     /       ; end;
+§2.3.2¶4 @ shouldfail @ program 42     %       ; end;
+§2.3.2¶4 @ shouldfail @ program        / 42    ; end;
+§2.3.2¶4 @ shouldfail @ program        % 42    ; end;
+§2.3.2¶4 @ shouldfail @ program 42     / number; end;
+§2.3.2¶4 @ shouldfail @ program 42     % number; end;
+§2.3.2¶4 @ shouldfail @ program number / 42    ; end;
+§2.3.2¶4 @ shouldfail @ program number % 42    ; end;
+
+
+
+§2.3.2¶5 @ shouldpass @ program 42          div 42         ; end;
+§2.3.2¶5 @ shouldpass @ program (42 div 42) div 42         ; end;
+§2.3.2¶5 @ shouldpass @ program 42          div (42 div 42); end;
+§2.3.2¶5 @ shouldpass @ program 42          div  42 div 42 ; end;
+§2.3.2¶5 @ shouldpass @ program 42          mod 42         ; end;
+§2.3.2¶5 @ shouldpass @ program (42 mod 42) mod 42         ; end;
+§2.3.2¶5 @ shouldpass @ program 42          mod (42 mod 42); end;
+§2.3.2¶5 @ shouldpass @ program 42          mod  42 mod 42 ; end;
+§2.3.2¶5 @ shouldpass @ program (42 div 42) mod 42         ; end;
+§2.3.2¶5 @ shouldpass @ program 42          mod (42 div 42); end;
+§2.3.2¶5 @ shouldpass @ program (42 mod 42) div 42         ; end;
+§2.3.2¶5 @ shouldpass @ program 42          div (42 mod 42); end;
+
+§2.3.2¶5 @ contexterr @ program 42          div foo        ; end;
+§2.3.2¶5 @ contexterr @ program foo         div 42         ; end;
+§2.3.2¶5 @ contexterr @ program foo         div foo        ; end;
+§2.3.2¶5 @ contexterr @ program 42          div { 42 }     ; end;
+§2.3.2¶5 @ contexterr @ program { 42 }      div 42         ; end;
+§2.3.2¶5 @ contexterr @ program { 42 : 42 } div { 42 : 42 }; end;
+§2.3.2¶5 @ contexterr @ program { 42 , 42 } div { 42 , 42 }; end;
+§2.3.2¶5 @ contexterr @ program 42          div true       ; end;
+§2.3.2¶5 @ contexterr @ program true        div 42         ; end;
+§2.3.2¶5 @ contexterr @ program true        div true       ; end;
+§2.3.2¶5 @ contexterr @ program 42          mod foo        ; end;
+§2.3.2¶5 @ contexterr @ program foo         mod 42         ; end;
+§2.3.2¶5 @ contexterr @ program foo         mod foo        ; end;
+§2.3.2¶5 @ contexterr @ program 42          mod { 42 }     ; end;
+§2.3.2¶5 @ contexterr @ program { 42 }      mod 42         ; end;
+§2.3.2¶5 @ contexterr @ program { 42 : 42 } mod { 42 : 42 }; end;
+§2.3.2¶5 @ contexterr @ program { 42 , 42 } mod { 42 , 42 }; end;
+§2.3.2¶5 @ contexterr @ program 42          mod true       ; end;
+§2.3.2¶5 @ contexterr @ program true        mod 42         ; end;
+§2.3.2¶5 @ contexterr @ program true        mod true       ; end;
+
+§2.3.2¶5 @ shouldfail @ program        div       ; end;
+§2.3.2¶5 @ shouldfail @ program        mod       ; end;
+§2.3.2¶5 @ shouldfail @ program 42     div       ; end;
+§2.3.2¶5 @ shouldfail @ program 42     mod       ; end;
+§2.3.2¶5 @ shouldfail @ program        div 42    ; end;
+§2.3.2¶5 @ shouldfail @ program        mod 42    ; end;
+§2.3.2¶5 @ shouldfail @ program number div 42    ; end;
+§2.3.2¶5 @ shouldfail @ program number mod 42    ; end;
+§2.3.2¶5 @ shouldfail @ program 42     div number; end;
+§2.3.2¶5 @ shouldfail @ program 42     mod number; end;
+§2.3.2¶5 @ shouldfail @ program use boolean div; in end; end;
+§2.3.2¶5 @ shouldfail @ program use boolean mod; in end; end;
+
+
+
+# §2.3.2¶6: Trasposición
+
+§2.3.2¶6 @ shouldpass @ program { 42 }'           ; end;
+§2.3.2¶6 @ shouldpass @ program { 42 }''          ; end;
+§2.3.2¶6 @ shouldpass @ program { 42 }'''         ; end;
+§2.3.2¶6 @ shouldpass @ program ({ 42 } + { 42 })'; end;
+§2.3.2¶6 @ shouldpass @ program { 42 }' + { 42 }  ; end;
+§2.3.2¶6 @ shouldpass @ program { 42 }  + { 42 }' ; end;
+§2.3.2¶6 @ shouldpass @ program { 42 }' + { 42 }' ; end;
+
+§2.3.2¶6 @ contexterr @ program foo '  ; end;
+§2.3.2¶6 @ contexterr @ program foo '' ; end;
+§2.3.2¶6 @ contexterr @ program foo '''; end;
+§2.3.2¶6 @ contexterr @ program true'  ; end;
+§2.3.2¶6 @ contexterr @ program true'' ; end;
+§2.3.2¶6 @ contexterr @ program true'''; end;
+
+§2.3.2¶6 @ shouldfail @ program       '  ; end;
+§2.3.2¶6 @ shouldfail @ program       '' ; end;
+§2.3.2¶6 @ shouldfail @ program       '''; end;
+§2.3.2¶6 @ shouldfail @ program number'  ; end;
+§2.3.2¶6 @ shouldfail @ program number'' ; end;
+§2.3.2¶6 @ shouldfail @ program number'''; end;
+
+
+
+# §2.¶.3.3: Operadores cruzados
+
+§2.3.3¶3 @ shouldpass @ program 42     .+.   { 42 }         ; end;
+§2.3.3¶3 @ shouldpass @ program 42     .-.   { 42 }         ; end;
+§2.3.3¶3 @ shouldpass @ program 42     .*.   { 42 }         ; end;
+§2.3.3¶3 @ shouldpass @ program 42     ./.   { 42 }         ; end;
+§2.3.3¶3 @ shouldpass @ program 42     .%.   { 42 }         ; end;
+§2.3.3¶3 @ shouldpass @ program 42     .div. { 42 }         ; end;
+§2.3.3¶3 @ shouldpass @ program 42     .mod. { 42 }         ; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } .+.   42             ; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } .-.   42             ; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } .*.   42             ; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } ./.   42             ; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } .%.   42             ; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } .div. 42             ; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } .mod. 42             ; end;
+§2.3.3¶3 @ shouldpass @ program 42     .+.   { 42 } .+.   42; end;
+§2.3.3¶3 @ shouldpass @ program 42     .-.   { 42 } .-.   42; end;
+§2.3.3¶3 @ shouldpass @ program 42     .*.   { 42 } .*.   42; end;
+§2.3.3¶3 @ shouldpass @ program 42     ./.   { 42 } ./.   42; end;
+§2.3.3¶3 @ shouldpass @ program 42     .%.   { 42 } .%.   42; end;
+§2.3.3¶3 @ shouldpass @ program 42     .div. { 42 } .div. 42; end;
+§2.3.3¶3 @ shouldpass @ program 42     .mod. { 42 } .mod. 42; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } .+.   42     .+.   42; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } .-.   42     .-.   42; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } .*.   42     .*.   42; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } ./.   42     ./.   42; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } .%.   42     .%.   42; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } .div. 42     .div. 42; end;
+§2.3.3¶3 @ shouldpass @ program { 42 } .mod. 42     .mod. 42; end;
+
+§2.3.3¶3 @ contexterr @ program foo    .+.   { 42 }; end;
+§2.3.3¶3 @ contexterr @ program foo    .-.   { 42 }; end;
+§2.3.3¶3 @ contexterr @ program foo    .*.   { 42 }; end;
+§2.3.3¶3 @ contexterr @ program foo    ./.   { 42 }; end;
+§2.3.3¶3 @ contexterr @ program foo    .%.   { 42 }; end;
+§2.3.3¶3 @ contexterr @ program foo    .div. { 42 }; end;
+§2.3.3¶3 @ contexterr @ program foo    .mod. { 42 }; end;
+§2.3.3¶3 @ contexterr @ program { 42 } .+.   foo   ; end;
+§2.3.3¶3 @ contexterr @ program { 42 } .-.   foo   ; end;
+§2.3.3¶3 @ contexterr @ program { 42 } .*.   foo   ; end;
+§2.3.3¶3 @ contexterr @ program { 42 } ./.   foo   ; end;
+§2.3.3¶3 @ contexterr @ program { 42 } .%.   foo   ; end;
+§2.3.3¶3 @ contexterr @ program { 42 } .div. foo   ; end;
+§2.3.3¶3 @ contexterr @ program { 42 } .mod. foo   ; end;
+§2.3.3¶3 @ contexterr @ program foo    .+.   { 42 } .+.   42 ; end;
+§2.3.3¶3 @ contexterr @ program foo    .-.   { 42 } .-.   42 ; end;
+§2.3.3¶3 @ contexterr @ program foo    .*.   { 42 } .*.   42 ; end;
+§2.3.3¶3 @ contexterr @ program foo    ./.   { 42 } ./.   42 ; end;
+§2.3.3¶3 @ contexterr @ program foo    .%.   { 42 } .%.   42 ; end;
+§2.3.3¶3 @ contexterr @ program foo    .div. { 42 } .div. 42 ; end;
+§2.3.3¶3 @ contexterr @ program foo    .mod. { 42 } .mod. 42 ; end;
+§2.3.3¶3 @ contexterr @ program { 42 } .+.   42     .+.   foo; end;
+§2.3.3¶3 @ contexterr @ program { 42 } .-.   42     .-.   foo; end;
+§2.3.3¶3 @ contexterr @ program { 42 } .*.   42     .*.   foo; end;
+§2.3.3¶3 @ contexterr @ program { 42 } ./.   42     ./.   foo; end;
+§2.3.3¶3 @ contexterr @ program { 42 } .%.   42     .%.   foo; end;
+§2.3.3¶3 @ contexterr @ program { 42 } .div. 42     .div. foo; end;
+§2.3.3¶3 @ contexterr @ program { 42 } .mod. 42     .mod. foo; end;
+
+§2.3.3¶3 @ shouldfail @ program        .+.         ; end;
+§2.3.3¶3 @ shouldfail @ program        .-.         ; end;
+§2.3.3¶3 @ shouldfail @ program        .*.         ; end;
+§2.3.3¶3 @ shouldfail @ program        ./.         ; end;
+§2.3.3¶3 @ shouldfail @ program        .%.         ; end;
+§2.3.3¶3 @ shouldfail @ program        .div.       ; end;
+§2.3.3¶3 @ shouldfail @ program        .mod.       ; end;
+§2.3.3¶3 @ shouldfail @ program        .+.   { 42 }; end;
+§2.3.3¶3 @ shouldfail @ program        .-.   { 42 }; end;
+§2.3.3¶3 @ shouldfail @ program        .*.   { 42 }; end;
+§2.3.3¶3 @ shouldfail @ program        ./.   { 42 }; end;
+§2.3.3¶3 @ shouldfail @ program        .%.   { 42 }; end;
+§2.3.3¶3 @ shouldfail @ program        .div. { 42 }; end;
+§2.3.3¶3 @ shouldfail @ program        .mod. { 42 }; end;
+§2.3.3¶3 @ shouldfail @ program { 42 } .+.         ; end;
+§2.3.3¶3 @ shouldfail @ program { 42 } .-.         ; end;
+§2.3.3¶3 @ shouldfail @ program { 42 } .*.         ; end;
+§2.3.3¶3 @ shouldfail @ program { 42 } ./.         ; end;
+§2.3.3¶3 @ shouldfail @ program { 42 } .%.         ; end;
+§2.3.3¶3 @ shouldfail @ program { 42 } .div.       ; end;
+§2.3.3¶3 @ shouldfail @ program { 42 } .mod.       ; end;
+
+
+
+# §2.3.4.1: Proyección de componente de matriz
+
+§2.3.4¶1 @ shouldpass @ program { 42 }           [42, 42]; end;
+§2.3.4¶1 @ shouldpass @ program { 42 }'          [42, 42]; end;
+§2.3.4¶1 @ shouldpass @ program ({ 42 } + { 42 })[42, 42]; end;
+§2.3.4¶1 @ shouldpass @ program ({ 42 } * { 42 })[42, 42]; end;
+
+§2.3.4¶1 @ contexterr @ program foo        [42, 42]; end;
+§2.3.4¶1 @ contexterr @ program foo'       [42, 42]; end;
+§2.3.4¶1 @ contexterr @ program (foo + foo)[42, 42]; end;
+§2.3.4¶1 @ contexterr @ program (foo * foo)[42, 42]; end;
+
+§2.3.4¶1 @ shouldfail @ program { 42 }[  ,   ]; end;
+§2.3.4¶1 @ shouldfail @ program { 42 }[42,   ]; end;
+§2.3.4¶1 @ shouldfail @ program { 42 }[  , 42]; end;
+§2.3.4¶1 @ shouldfail @ program       [42, 42]; end;
+§2.3.4¶1 @ shouldfail @ program { 42 }[42  42]; end;
+§2.3.4¶1 @ shouldfail @ program { 42 }[42, 42 ; end;
+
+
+
+# §2.3.4.4: Proyección de componente de vector
+
+§2.3.4¶4 @ shouldpass @ program { 42 }           [42]; end;
+§2.3.4¶4 @ shouldpass @ program { 42 }'          [42]; end;
+§2.3.4¶4 @ shouldpass @ program ({ 42 } + { 42 })[42]; end;
+§2.3.4¶4 @ shouldpass @ program ({ 42 } * { 42 })[42]; end;
+
+§2.3.4¶4 @ contexterr @ program foo        [42]; end;
+§2.3.4¶4 @ contexterr @ program foo'       [42]; end;
+§2.3.4¶4 @ contexterr @ program (foo + foo)[42]; end;
+§2.3.4¶4 @ contexterr @ program (foo * foo)[42]; end;
+
+§2.3.4¶4 @ shouldfail @ program { 42 }[  ]; end;
+§2.3.4¶4 @ shouldfail @ program       [42]; end;
+§2.3.4¶4 @ shouldfail @ program { 42 }[42 ; end;
+
+
+
+# §2.4¶2: Secuencia de instrucciones
+
+§2.4¶2 @ shouldpass @ program             end;
+§2.4¶2 @ shouldpass @ program 42;         end;
+§2.4¶2 @ shouldpass @ program 42; 42;     end;
+§2.4¶2 @ shouldpass @ program 42; 42; 42; end;
+
+§2.4¶2 @ shouldfail @ program 42 42  end;
+§2.4¶2 @ shouldfail @ program 42 42; end;
+§2.4¶2 @ shouldfail @ program ;      end;
+§2.4¶2 @ shouldfail @ program ; ;    end;
+§2.4¶2 @ shouldfail @ program ; ; ;  end;
+
+
+
+# §2.4.1¶1: Instrucción de impresión
+
+§2.4.1¶1 @ shouldpass @ program print 42                                           ; end;
+§2.4.1¶1 @ shouldpass @ program print 42 + 42                                      ; end;
+§2.4.1¶1 @ shouldpass @ program print true                                         ; end;
+§2.4.1¶1 @ shouldpass @ program print not true                                     ; end;
+§2.4.1¶1 @ shouldpass @ program print { 42 }                                       ; end;
+§2.4.1¶1 @ shouldpass @ program print { 42 } + { 42 }                              ; end;
+§2.4.1¶1 @ shouldpass @ program print 42             , 42                          ; end;
+§2.4.1¶1 @ shouldpass @ program print 42 + 42        , 42                          ; end;
+§2.4.1¶1 @ shouldpass @ program print true           , 42                          ; end;
+§2.4.1¶1 @ shouldpass @ program print not true       , 42                          ; end;
+§2.4.1¶1 @ shouldpass @ program print { 42 }         , 42                          ; end;
+§2.4.1¶1 @ shouldpass @ program print { 42 } + { 42 }, 42                          ; end;
+§2.4.1¶1 @ shouldpass @ program print 42             , 42           , 42           ; end;
+§2.4.1¶1 @ shouldpass @ program print 42 + 42        , 42           , 42           ; end;
+§2.4.1¶1 @ shouldpass @ program print true           , 42           , 42           ; end;
+§2.4.1¶1 @ shouldpass @ program print not true       , 42           , 42           ; end;
+§2.4.1¶1 @ shouldpass @ program print { 42 }         , 42           , 42           ; end;
+§2.4.1¶1 @ shouldpass @ program print { 42 } + { 42 }, 42           , 42           ; end;
+§2.4.1¶1 @ shouldpass @ program print "hello world"                                ; end;
+§2.4.1¶1 @ shouldpass @ program print "hello world"  , "hello world"               ; end;
+§2.4.1¶1 @ shouldpass @ program print 42             , "hello world"               ; end;
+§2.4.1¶1 @ shouldpass @ program print 42 + 42        , "hello world"               ; end;
+§2.4.1¶1 @ shouldpass @ program print "hello world"  , 42                          ; end;
+§2.4.1¶1 @ shouldpass @ program print "hello world"  , 42 + 42                     ; end;
+§2.4.1¶1 @ shouldpass @ program print "hello world"  , "hello world", "hello world"; end;
+§2.4.1¶1 @ shouldpass @ program print 42             , "hello world", "hello world"; end;
+§2.4.1¶1 @ shouldpass @ program print 42 + 42        , "hello world", "hello world"; end;
+§2.4.1¶1 @ shouldpass @ program print "hello world"  , 42           , "hello world"; end;
+§2.4.1¶1 @ shouldpass @ program print "hello world"  , 42 + 42      , "hello world"; end;
+§2.4.1¶1 @ shouldpass @ program print "hello world"  , "hello world", 42           ; end;
+§2.4.1¶1 @ shouldpass @ program print "hello world"  , "hello world", 42 + 42      ; end;
+
+§2.4.1¶1 @ contexterr @ program print foo          ; end;
+§2.4.1¶1 @ contexterr @ program print foo, foo     ; end;
+§2.4.1¶1 @ contexterr @ program print foo, foo, foo; end;
+
+§2.4.1¶1 @ shouldfail @ program print ; end;
+§2.4.1¶1 @ shouldfail @ program print 42 42; end;
+§2.4.1¶1 @ shouldfail @ program print print; end;
+§2.4.1¶1 @ shouldfail @ program use boolean print; in end;
+
+
+
+# §2.4.2¶2: Identificadores
+
+§2.4.2¶2 @ shouldpass @ program use boolean foo     ;              in end; end;
+§2.4.2¶2 @ shouldpass @ program use boolean Foo     ;              in end; end;
+§2.4.2¶2 @ shouldpass @ program use boolean foo42   ;              in end; end;
+§2.4.2¶2 @ shouldpass @ program use boolean foo42foo;              in end; end;
+§2.4.2¶2 @ shouldpass @ program use boolean foo_    ;              in end; end;
+§2.4.2¶2 @ shouldpass @ program use boolean foo_foo ;              in end; end;
+§2.4.2¶2 @ shouldpass @ program use boolean foo_42  ;              in end; end;
+§2.4.2¶2 @ shouldpass @ program use boolean foo     ; boolean Foo; in end; end;
+
+§2.4.2¶2 @ shouldfail @ program use boolean _foo ; in end;
+§2.4.2¶2 @ shouldfail @ program use boolean 42   ; in end;
+§2.4.2¶2 @ shouldfail @ program use boolean 42foo; in end;
+
+
+
+# §2.4.2¶5: Secuencia de declaraciones
+
+# TODO: declaraciones con inicialización!
+§2.4.2¶5 @ shouldpass @ program use                                        in end; end;
+§2.4.2¶5 @ shouldpass @ program use boolean foo;                           in end; end;
+§2.4.2¶5 @ shouldpass @ program use              boolean bar;              in end; end;
+§2.4.2¶5 @ shouldpass @ program use boolean foo; boolean bar;              in end; end;
+§2.4.2¶5 @ shouldpass @ program use boolean foo; boolean bar; boolean baz; in end; end;
+
+# TODO: declaraciones con inicialización con errores de tipo!
+§2.4.2¶2 @ contexterr @ program use boolean  foo; boolean foo; in end; end;
+
+# TODO: declaraciones con inicialización con errores de sintaxis!
+§2.4.2¶5 @ shouldfail @ program use 42                 in end;
+§2.4.2¶5 @ shouldfail @ program use true               in end;
+§2.4.2¶5 @ shouldfail @ program use 42               ; in end;
+§2.4.2¶5 @ shouldfail @ program use true             ; in end;
+§2.4.2¶5 @ shouldfail @ program use true     foo     ; in end;
+§2.4.2¶5 @ shouldfail @ program use not true foo     ; in end;
+§2.4.2¶5 @ shouldfail @ program use 42       foo     ; in end;
+§2.4.2¶5 @ shouldfail @ program use 42 + 42  foo     ; in end;
+§2.4.2¶5 @ shouldfail @ program use { 42 }   foo     ; in end;
+§2.4.2¶5 @ shouldfail @ program use { 42 }'  foo     ; in end;
+§2.4.2¶5 @ shouldfail @ program use foo      foo     ; in end;
+§2.4.2¶5 @ shouldfail @ program use boolean  true    ; in end;
+§2.4.2¶5 @ shouldfail @ program use boolean  not true; in end;
+§2.4.2¶5 @ shouldfail @ program use boolean  42      ; in end;
+§2.4.2¶5 @ shouldfail @ program use boolean  42 + 42 ; in end;
+§2.4.2¶5 @ shouldfail @ program use boolean  { 42 }  ; in end;
+§2.4.2¶5 @ shouldfail @ program use boolean  { 42 }' ; in end;
+
+
+
+# §2.4.2¶6: Instrucción de bloque
+
+§2.4.2¶6 @ shouldpass @ program use in                               end; end;
+§2.4.2¶6 @ shouldpass @ program use in 42      ;                     end; end;
+§2.4.2¶6 @ shouldpass @ program use in 42      ; 42      ;           end; end;
+§2.4.2¶6 @ shouldpass @ program use in 42      ; 42      ; 42      ; end; end;
+§2.4.2¶6 @ shouldpass @ program use in print 42;                     end; end;
+§2.4.2¶6 @ shouldpass @ program use in print 42; print 42;           end; end;
+§2.4.2¶6 @ shouldpass @ program use in print 42; print 42; print 42; end; end;
+§2.4.2¶6 @ shouldpass @ program use in use in                 end;   end; end;
+§2.4.2¶6 @ shouldpass @ program use in use in use in     end; end;   end; end;
+§2.4.2¶6 @ shouldpass @ program use in use in        42;      end;   end; end;
+§2.4.2¶6 @ shouldpass @ program use in use in use in 42; end; end;   end; end;
+
+§2.4.2¶6 @ shouldfail @ program     in                               end; end;
+§2.4.2¶6 @ shouldfail @ program use                                  end; end;
+§2.4.2¶6 @ shouldfail @ program use in                                  ; end;
+§2.4.2¶6 @ shouldfail @ program use in                               end  end;
+§2.4.2¶6 @ shouldfail @ program use in 42                            end; end;
+§2.4.2¶6 @ shouldfail @ program use in 42  42                        end; end;
+§2.4.2¶6 @ shouldfail @ program use in 42; 42                        end; end;
+§2.4.2¶6 @ shouldfail @ program use in 42  42  42                    end; end;
+§2.4.2¶6 @ shouldfail @ program use in 42; 42  42                    end; end;
+§2.4.2¶6 @ shouldfail @ program use in 42; 42; 42                    end; end;
+§2.4.2¶6 @ shouldfail @ program use boolean use; in end; end;
+§2.4.2¶6 @ shouldfail @ program use boolean in ; in end; end;
+§2.4.2¶6 @ shouldfail @ program use boolean end; in end; end;
+
+
+
+# §2.4.3¶2: Asignación a variable
+
+§2.4.3¶2 @ shouldpass @ program use boolean      foo; in set foo = true               ; end; end;
+§2.4.3¶2 @ shouldpass @ program use boolean      foo; in set foo = not true           ; end; end;
+§2.4.3¶2 @ shouldpass @ program use number       foo; in set foo = 42                 ; end; end;
+§2.4.3¶2 @ shouldpass @ program use number       foo; in set foo = 42 + 42            ; end; end;
+§2.4.3¶2 @ shouldpass @ program use row(2)       foo; in set foo = { 42, 42          }; end; end;
+§2.4.3¶2 @ shouldpass @ program use col(2)       foo; in set foo = { 42     : 42     }; end; end;
+§2.4.3¶2 @ shouldpass @ program use matrix(2, 2) foo; in set foo = { 42, 42 : 42, 42 }; end; end;
+
+§2.4.3¶2 @ contexterr @ program use number       foo; in set foo = true               ; end; end;
+§2.4.3¶2 @ contexterr @ program use row(2)       foo; in set foo = true               ; end; end;
+§2.4.3¶2 @ contexterr @ program use col(2)       foo; in set foo = true               ; end; end;
+§2.4.3¶2 @ contexterr @ program use matrix(2, 2) foo; in set foo = true               ; end; end;
+§2.4.3¶2 @ contexterr @ program use boolean      foo; in set foo = 42                 ; end; end;
+§2.4.3¶2 @ contexterr @ program use row(2)       foo; in set foo = 42                 ; end; end;
+§2.4.3¶2 @ contexterr @ program use col(2)       foo; in set foo = 42                 ; end; end;
+§2.4.3¶2 @ contexterr @ program use matrix(2, 2) foo; in set foo = 42                 ; end; end;
+§2.4.3¶2 @ contexterr @ program use boolean      foo; in set foo = { 42, 42          }; end; end;
+§2.4.3¶2 @ contexterr @ program use number       foo; in set foo = { 42, 42          }; end; end;
+§2.4.3¶2 @ contexterr @ program use col(2)       foo; in set foo = { 42, 42          }; end; end;
+§2.4.3¶2 @ contexterr @ program use matrix(2, 2) foo; in set foo = { 42, 42          }; end; end;
+§2.4.3¶2 @ contexterr @ program use boolean      foo; in set foo = { 42     : 42     }; end; end;
+§2.4.3¶2 @ contexterr @ program use number       foo; in set foo = { 42     : 42     }; end; end;
+§2.4.3¶2 @ contexterr @ program use row(2)       foo; in set foo = { 42     : 42     }; end; end;
+§2.4.3¶2 @ contexterr @ program use matrix(2, 2) foo; in set foo = { 42     : 42     }; end; end;
+§2.4.3¶2 @ contexterr @ program use boolean      foo; in set foo = { 42, 42 : 42, 42 }; end; end;
+§2.4.3¶2 @ contexterr @ program use number       foo; in set foo = { 42, 42 : 42, 42 }; end; end;
+§2.4.3¶2 @ contexterr @ program use row(2)       foo; in set foo = { 42, 42 : 42, 42 }; end; end;
+§2.4.3¶2 @ contexterr @ program use col(2)       foo; in set foo = { 42, 42 : 42, 42 }; end; end;
+§2.4.3¶2 @ contexterr @ program use row(3)       foo; in set foo = { 42, 42          }; end; end;
+§2.4.3¶2 @ contexterr @ program use col(3)       foo; in set foo = { 42     : 42     }; end; end;
+§2.4.3¶2 @ contexterr @ program use matrix(2, 3) foo; in set foo = { 42, 42 : 42, 42 }; end; end;
+§2.4.3¶2 @ contexterr @ program use matrix(3, 2) foo; in set foo = { 42, 42 : 42, 42 }; end; end;
+§2.4.3¶2 @ contexterr @ program use matrix(3, 3) foo; in set foo = { 42, 42 : 42, 42 }; end; end;
+§2.4.3¶2 @ contexterr @ program set foo = true; end;
+§2.4.3¶2 @ contexterr @ program use boolean foo; in set bar = true; end; end;
+§2.4.3¶2 @ contexterr @ program use boolean foo; in end; set foo = true; end;
+§2.4.3¶2 @ contexterr @ program use boolean foo; in use number foo; in set foo = true; end; end; end;
+
+§2.4.3¶2 @ shouldfail @ program use boolean foo; in     foo = true               ; end; end;
+§2.4.3¶2 @ shouldfail @ program use boolean foo; in set     = true               ; end; end;
+§2.4.3¶2 @ shouldfail @ program use boolean foo; in set foo   true               ; end; end;
+§2.4.3¶2 @ shouldfail @ program use boolean foo; in set foo =                    ; end; end;
+§2.4.3¶2 @ shouldfail @ program use boolean foo; in set foo = true                 end; end;
+§2.4.3¶2 @ shouldfail @ program use boolean set; in end; end;
+
+
+
+# §2.4.3¶6: Asignación a posición de matriz
+
+§2.4.3¶6 @ shouldpass @ program use matrix(2, 2) m; in set m[42        , 42        ] = 42             ; end; end;
+§2.4.3¶6 @ shouldpass @ program use matrix(2, 2) m; in set m[42 + 42   , 42        ] = 42             ; end; end;
+§2.4.3¶6 @ shouldpass @ program use matrix(2, 2) m; in set m[42        , 42 + 42   ] = 42             ; end; end;
+§2.4.3¶6 @ shouldpass @ program use matrix(2, 2) m; in set m[42        , 42        ] = 42 + 42        ; end; end;
+§2.4.3¶6 @ shouldpass @ program use matrix(2, 2) m; in set m[{ 42 }[42], 42        ] = 42             ; end; end;
+§2.4.3¶6 @ shouldpass @ program use matrix(2, 2) m; in set m[42        , { 42 }[42]] = 42             ; end; end;
+§2.4.3¶6 @ shouldpass @ program use matrix(2, 2) m; in set m[42        , 42        ] = { 42 }[42]     ; end; end;
+§2.4.3¶6 @ shouldpass @ program use row   (2   ) m; in set m[42        , 42        ] = 42             ; end; end;
+§2.4.3¶6 @ shouldpass @ program use col   (2   ) m; in set m[42        , 42        ] = 42             ; end; end;
+
+§2.4.3¶6 @ contexterr @ program                        set m[42        , 42        ] = 42             ;      end;
+§2.4.3¶6 @ contexterr @ program use boolean      m; in set m[42        , 42        ] = 42             ; end; end;
+§2.4.3¶6 @ contexterr @ program use number       m; in set m[42        , 42        ] = 42             ; end; end;
+§2.4.3¶6 @ contexterr @ program use matrix(2, 2) m; in set m[foo       , 42        ] = 42             ; end; end;
+§2.4.3¶6 @ contexterr @ program use matrix(2, 2) m; in set m[42        , foo       ] = 42             ; end; end;
+§2.4.3¶6 @ contexterr @ program use matrix(2, 2) m; in set m[42        , 42        ] = foo            ; end; end;
+§2.4.3¶6 @ contexterr @ program use matrix(2, 2) m; in set m[true      , 42        ] = 42             ; end; end;
+§2.4.3¶6 @ contexterr @ program use matrix(2, 2) m; in set m[42        , true      ] = 42             ; end; end;
+§2.4.3¶6 @ contexterr @ program use matrix(2, 2) m; in set m[42        , 42        ] = true           ; end; end;
+§2.4.3¶6 @ contexterr @ program use matrix(2, 2) m; in set m[{ 42 }    , 42        ] = 42             ; end; end;
+§2.4.3¶6 @ contexterr @ program use matrix(2, 2) m; in set m[42        , { 42 }    ] = 42             ; end; end;
+§2.4.3¶6 @ contexterr @ program use matrix(2, 2) m; in set m[42        , 42        ] = { 42 }         ; end; end;
+§2.4.3¶6 @ contexterr @ program use matrix(2, 2) m; in set m[42        , 42        ] = { 42 } + { 42 }; end; end;
+
+§2.4.3¶6 @ shouldfail @ program in set true     [42, 42] = 42; end;
+§2.4.3¶6 @ shouldfail @ program in set 42       [42, 42] = 42; end;
+§2.4.3¶6 @ shouldfail @ program in set { 42 }   [42, 42] = 42; end;
+§2.4.3¶6 @ shouldfail @ program in set (foo+foo)[42, 42] = 42; end;
+
+
+
+# §2.4.3¶7: Asignación a posición de vector
+
+§2.4.3¶7 @ shouldpass @ program use matrix(1, 1) m; in set m        [42        ] = 42             ; end; end;
+§2.4.3¶7 @ shouldpass @ program use matrix(1, 1) m; in set m        [42 + 42   ] = 42             ; end; end;
+§2.4.3¶7 @ shouldpass @ program use matrix(1, 1) m; in set m        [{ 42 }[42]] = 42             ; end; end;
+§2.4.3¶7 @ shouldpass @ program use row   (2   ) m; in set m        [42        ] = 42             ; end; end;
+§2.4.3¶7 @ shouldpass @ program use row   (2   ) m; in set m        [42 + 42   ] = 42             ; end; end;
+§2.4.3¶7 @ shouldpass @ program use row   (2   ) m; in set m        [{ 42 }[42]] = 42             ; end; end;
+§2.4.3¶7 @ shouldpass @ program use col   (2   ) m; in set m        [42        ] = 42             ; end; end;
+§2.4.3¶7 @ shouldpass @ program use col   (2   ) m; in set m        [42 + 42   ] = 42             ; end; end;
+§2.4.3¶7 @ shouldpass @ program use col   (2   ) m; in set m        [{ 42 }[42]] = 42             ; end; end;
+§2.4.3¶7 @ shouldpass @ program use row   (2   ) m; in set m        [42        ] = 42 + 42        ; end; end;
+§2.4.3¶7 @ shouldpass @ program use col   (2   ) m; in set m        [42        ] = 42 + 42        ; end; end;
+
+§2.4.3¶7 @ contexterr @ program                        set m        [42        ] = 42             ;      end;
+§2.4.3¶7 @ contexterr @ program use boolean      m; in set m        [42        ] = 42             ; end; end;
+§2.4.3¶7 @ contexterr @ program use number       m; in set m        [42        ] = 42             ; end; end;
+§2.4.3¶7 @ contexterr @ program use row   (2   ) m; in set m        [foo       ] = 42             ; end; end;
+§2.4.3¶7 @ contexterr @ program use row   (2   ) m; in set m        [42        ] = foo            ; end; end;
+§2.4.3¶7 @ contexterr @ program use row   (2   ) m; in set m        [true      ] = 42             ; end; end;
+§2.4.3¶7 @ contexterr @ program use row   (2   ) m; in set m        [42        ] = true           ; end; end;
+§2.4.3¶7 @ contexterr @ program use row   (2   ) m; in set m        [42        ] = { 42 }         ; end; end;
+§2.4.3¶7 @ contexterr @ program use row   (2   ) m; in set m        [42        ] = { 42 } + { 42 }; end; end;
+§2.4.3¶7 @ contexterr @ program use col   (2   ) m; in set m        [foo       ] = 42             ; end; end;
+§2.4.3¶7 @ contexterr @ program use col   (2   ) m; in set m        [42        ] = foo            ; end; end;
+§2.4.3¶7 @ contexterr @ program use col   (2   ) m; in set m        [true      ] = 42             ; end; end;
+§2.4.3¶7 @ contexterr @ program use col   (2   ) m; in set m        [42        ] = true           ; end; end;
+§2.4.3¶7 @ contexterr @ program use col   (2   ) m; in set m        [42        ] = { 42 }         ; end; end;
+§2.4.3¶7 @ contexterr @ program use col   (2   ) m; in set m        [42        ] = { 42 } + { 42 }; end; end;
+
+§2.4.3¶7 @ shouldfail @ program use matrix(1, 1) m; in     m        [42        ] = 42             ; end; end;
+§2.4.3¶7 @ shouldfail @ program use matrix(1, 1) m; in set          [42        ] = 42             ; end; end;
+§2.4.3¶7 @ shouldfail @ program use matrix(1, 1) m; in set m         42        ] = 42             ; end; end;
+§2.4.3¶7 @ shouldfail @ program use matrix(1, 1) m; in set m        [          ] = 42             ; end; end;
+§2.4.3¶7 @ shouldfail @ program use matrix(1, 1) m; in set m        [42          = 42             ; end; end;
+§2.4.3¶7 @ shouldfail @ program use matrix(1, 1) m; in set m        [42        ]   42             ; end; end;
+§2.4.3¶7 @ shouldfail @ program use matrix(1, 1) m; in set m        [42        ] =                ; end; end;
+§2.4.3¶7 @ shouldfail @ program use matrix(1, 1) m; in set m        [42        ] = 42               end; end;
+§2.4.3¶7 @ shouldfail @ program use matrix(1, 1) m; in set true     [42        ] = 42             ; end; end;
+§2.4.3¶7 @ shouldfail @ program use matrix(1, 1) m; in set 42       [42        ] = 42             ; end; end;
+§2.4.3¶7 @ shouldfail @ program use matrix(1, 1) m; in set { 42 }   [42        ] = 42             ; end; end;
+§2.4.3¶7 @ shouldfail @ program use matrix(1, 1) m; in set (foo+foo)[42        ] = 42             ; end; end;
+
+
+
+# §2.4.4¶1: Instrucción de lectura
+
+§2.4.4¶1 @ shouldpass @ program use boolean      foo; in read foo; end; end;
+§2.4.4¶1 @ shouldpass @ program use number       foo; in read foo; end; end;
+
+§2.4.4¶1 @ contexterr @ program                            read bar;      end;
+§2.4.4¶1 @ contexterr @ program use matrix(2, 2) foo; in read foo; end; end;
+§2.4.4¶1 @ contexterr @ program use row   (42  ) foo; in read foo; end; end;
+§2.4.4¶1 @ contexterr @ program use col   (42  ) foo; in read foo; end; end;
+§2.4.4¶1 @ contexterr @ program use boolean      foo; in read bar; end; end;
+§2.4.4¶1 @ contexterr @ program use boolean      foo; in read bar; end; end;
+
+§2.4.4¶1 @ shouldfail @ program use boolean      foo; in read            ; end; end;
+§2.4.4¶1 @ shouldfail @ program use boolean      foo; in read foo          end; end;
+§2.4.4¶1 @ shouldfail @ program use boolean      foo; in read true       ; end; end;
+§2.4.4¶1 @ shouldfail @ program use boolean      foo; in read 42         ; end; end;
+§2.4.4¶1 @ shouldfail @ program use boolean      foo; in read 42 + 42    ; end; end;
+§2.4.4¶1 @ shouldfail @ program use boolean      foo; in read { 42 }     ; end; end;
+§2.4.4¶1 @ shouldfail @ program use row   (42  ) foo; in read foo[42    ]; end; end;
+§2.4.4¶1 @ shouldfail @ program use col   (42  ) foo; in read foo[42    ]; end; end;
+§2.4.4¶1 @ shouldfail @ program use matrix(2, 2) foo; in read foo[42, 42]; end; end;
+§2.4.4¶1 @ shouldfail @ program use boolean read; in end; end;
+
+
+
+# §2.4.5¶1: Instrucción condicional
+
+§2.4.5¶1 @ shouldpass @ program use boolean foo; in if foo  then           else           end; end; end;
+§2.4.5¶1 @ shouldpass @ program use boolean foo; in if true then read foo; else           end; end; end;
+§2.4.5¶1 @ shouldpass @ program use boolean foo; in if true then           else read foo; end; end; end;
+§2.4.5¶1 @ shouldpass @ program if true        then                        else                        end; end;
+§2.4.5¶1 @ shouldpass @ program if true        then true;                  else                        end; end;
+§2.4.5¶1 @ shouldpass @ program if true        then true; true;            else                        end; end;
+§2.4.5¶1 @ shouldpass @ program if true        then                        else true;                  end; end;
+§2.4.5¶1 @ shouldpass @ program if true        then                        else true; true;            end; end;
+§2.4.5¶1 @ shouldpass @ program if true & true then                        else                        end; end;
+§2.4.5¶1 @ shouldpass @ program if true | true then                        else                        end; end;
+§2.4.5¶1 @ shouldpass @ program if 42 < 42     then                        else                        end; end;
+§2.4.5¶1 @ shouldpass @ program if true        then use in end;            else                        end; end;
+§2.4.5¶1 @ shouldpass @ program if true        then                        else use in end;            end; end;
+§2.4.5¶1 @ shouldpass @ program if true        then print 42;              else                        end; end;
+§2.4.5¶1 @ shouldpass @ program if true        then                        else print 42;              end; end;
+§2.4.5¶1 @ shouldpass @ program if true        then if true then else end; else                        end; end;
+§2.4.5¶1 @ shouldpass @ program if true        then                        else if true then else end; end; end;
+§2.4.5¶1 @ shouldpass @ program if true        then if true then else end; else if true then else end; end; end;
+
+§2.4.5¶1 @ contexterr @ program if 42          then                        else                        end; end;
+§2.4.5¶1 @ contexterr @ program if { 42 }      then                        else                        end; end;
+§2.4.5¶1 @ contexterr @ program if foo         then                        else                        end; end;
+§2.4.6¶1 @ contexterr @ program use number foo; in if foo then else end; end; end;
+
+§2.4.5¶1 @ shouldfail @ program    true        then                        else                        end; end;
+§2.4.5¶1 @ shouldfail @ program if             then                        else                        end; end;
+§2.4.5¶1 @ shouldfail @ program if true                                    else                        end; end;
+§2.4.5¶1 @ shouldfail @ program if true        then                        else                           ; end;
+§2.4.5¶1 @ shouldfail @ program if true        then                        else                        end  end;
+§2.4.5¶1 @ shouldfail @ program use boolean if  ; in end; end;
+§2.4.5¶1 @ shouldfail @ program use boolean then; in end; end;
+§2.4.5¶1 @ shouldfail @ program use boolean else; in end; end;
+
+
+
+# §2.4.5¶2: Instrucción condicional incompleta
+
+§2.4.5¶2 @ shouldpass @ program use boolean foo; in if foo  then           end; end; end;
+§2.4.5¶2 @ shouldpass @ program use boolean foo; in if true then read foo; end; end; end;
+§2.4.5¶2 @ shouldpass @ program if true        then                        end; end;
+§2.4.5¶2 @ shouldpass @ program if true        then true;                  end; end;
+§2.4.5¶2 @ shouldpass @ program if true        then true; true;            end; end;
+§2.4.5¶2 @ shouldpass @ program if true & true then                        end; end;
+§2.4.5¶2 @ shouldpass @ program if true | true then                        end; end;
+§2.4.5¶2 @ shouldpass @ program if 42 < 42     then                        end; end;
+§2.4.5¶2 @ shouldpass @ program if true        then print 42;              end; end;
+§2.4.5¶2 @ shouldpass @ program if true        then use in end;            end; end;
+§2.4.5¶2 @ shouldpass @ program if true        then if true then else end; end; end;
+
+§2.4.5¶2 @ contexterr @ program if 42          then                        end; end;
+§2.4.5¶2 @ contexterr @ program if { 42 }      then                        end; end;
+§2.4.5¶2 @ contexterr @ program if foo         then                        end; end;
+§2.4.6¶1 @ contexterr @ program use number foo; in if foo then end; end; end;
+
+§2.4.5¶2 @ shouldfail @ program    true        then                        end; end;
+§2.4.5¶2 @ shouldfail @ program if             then                        end; end;
+§2.4.5¶2 @ shouldfail @ program if true                                    end; end;
+§2.4.5¶2 @ shouldfail @ program if true        then                           ; end;
+§2.4.5¶2 @ shouldfail @ program if true        then                        end  end;
+
+
+
+# §2.4.6¶1: Instrucción de iteración indeterminada
+
+§2.4.6¶1 @ shouldpass @ program while true        do                        end; end;
+§2.4.6¶1 @ shouldpass @ program while true & true do                        end; end;
+§2.4.6¶1 @ shouldpass @ program while true | true do                        end; end;
+§2.4.6¶1 @ shouldpass @ program while 42 < 42     do                        end; end;
+§2.4.6¶1 @ shouldpass @ program while true        do true;                  end; end;
+§2.4.6¶1 @ shouldpass @ program while true        do true; true;            end; end;
+§2.4.6¶1 @ shouldpass @ program while true        do print 42;              end; end;
+§2.4.6¶1 @ shouldpass @ program while true        do while true do end;     end; end;
+§2.4.6¶1 @ shouldpass @ program while true        do use in end;            end; end;
+§2.4.6¶1 @ shouldpass @ program while true        do if true then else end; end; end;
+§2.4.6¶1 @ shouldpass @ program while true        do if true then      end; end; end;
+§2.4.6¶1 @ shouldpass @ program use in       while true do end;                         end; end;
+§2.4.6¶1 @ shouldpass @ program if true then while true do end;                         end; end;
+§2.4.6¶1 @ shouldpass @ program if true then while true do end; else                    end; end;
+§2.4.6¶1 @ shouldpass @ program if true then                    else while true do end; end; end;
+§2.4.6¶1 @ shouldpass @ program use boolean foo; in while foo do end; end; end;
+
+§2.4.6¶1 @ contexterr @ program while 42     do end; end;
+§2.4.6¶1 @ contexterr @ program while { 42 } do end; end;
+§2.4.6¶1 @ contexterr @ program while foo    do end; end;
+§2.4.6¶1 @ contexterr @ program use number foo; in while foo do end; end; end;
+
+§2.4.6¶1 @ shouldfail @ program       true do end; end;
+§2.4.6¶1 @ shouldfail @ program while      do end; end;
+§2.4.6¶1 @ shouldfail @ program while true    end; end;
+§2.4.6¶1 @ shouldfail @ program while true do    ; end;
+§2.4.6¶1 @ shouldfail @ program while true do end  end;
+§2.4.6¶1 @ shouldfail @ program use boolean while; in end; end;
+§2.4.6¶1 @ shouldfail @ program use boolean do   ; in end; end;
+
+
+
+# §2.4.6¶2: Instrucción de iteración determinada
+
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 }          do                            end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42, 42 }      do                            end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 : 42 }     do                            end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 } + { 42 } do                            end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 }'         do                            end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 }          do true;                      end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 }          do true; true;                end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 }          do foo;                       end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 }          do foo < foo;                 end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 }          do print 42;                  end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 }          do read foo;                  end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 }          do use in                end; end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 }          do if true then          end; end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 }          do if true then     else end; end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 }          do while true do         end; end; end;
+§2.4.6¶2 @ shouldpass @ program for foo in { 42 }          do for foo in { 42 } do  end; end; end;
+§2.4.6¶1 @ shouldpass @ program if    true then for foo in { 42 } do end;                                end; end;
+§2.4.6¶1 @ shouldpass @ program if    true then for foo in { 42 } do end; else                           end; end;
+§2.4.6¶1 @ shouldpass @ program if    true then                           else for foo in { 42 } do end; end; end;
+§2.4.6¶1 @ shouldpass @ program while true do   for foo in { 42 } do end;                                end; end;
+§2.4.6¶2 @ shouldpass @ program use row   (42  ) foo; in for bar in foo    do            end; end; end;
+§2.4.6¶2 @ shouldpass @ program use col   (42  ) foo; in for bar in foo    do            end; end; end;
+§2.4.6¶2 @ shouldpass @ program use matrix(2, 2) foo; in for bar in foo    do            end; end; end;
+§2.4.6¶2 @ shouldpass @ program use row   (42  ) foo; in for foo in foo    do            end; end; end;
+§2.4.6¶2 @ shouldpass @ program use col   (42  ) foo; in for foo in foo    do            end; end; end;
+§2.4.6¶2 @ shouldpass @ program use matrix(2, 2) foo; in for foo in foo    do            end; end; end;
+§2.4.6¶2 @ shouldpass @ program use boolean      foo; in for foo in { 42 } do foo < foo; end; end; end;
+
+§2.4.6¶2 @ contexterr @ program                     for foo in true      do          end;      end;
+§2.4.6¶2 @ contexterr @ program                     for foo in 42        do          end;      end;
+§2.4.6¶2 @ contexterr @ program                     for foo in 42 + 42   do          end;      end;
+§2.4.6¶2 @ contexterr @ program                     for foo in bar       do          end;      end;
+§2.4.6¶2 @ contexterr @ program                     for foo in foo       do          end;      end;
+§2.4.6¶2 @ contexterr @ program                     for foo in { 42 }    do not foo; end;      end;
+§2.4.6¶2 @ contexterr @ program                     for foo in { 42 }    do foo'   ; end;      end;
+§2.4.6¶2 @ contexterr @ program use boolean foo; in for foo in { 42 }    do not foo; end; end; end;
+§2.4.6¶2 @ contexterr @ program use row(42) foo; in for foo in { 42 }    do foo'   ; end; end; end;
+§2.4.6¶2 @ contexterr @ program use number  foo; in for bar in foo + foo do          end; end; end;
+
+§2.4.6¶2 @ shouldfail @ program     foo in { 42 } do end; end;
+§2.4.6¶2 @ shouldfail @ program for     in { 42 } do end; end;
+§2.4.6¶2 @ shouldfail @ program for foo    { 42 } do end; end;
+§2.4.6¶2 @ shouldfail @ program for foo in        do end; end;
+§2.4.6¶2 @ shouldfail @ program for foo in { 42 }    end; end;
+§2.4.6¶2 @ shouldfail @ program for foo in { 42 } do    ; end;
+§2.4.6¶2 @ shouldfail @ program for foo in { 42 } do end  end;
+§2.4.6¶2 @ shouldfail @ program use boolean for; in end; end;
+
+
+
+# §2.4.7¶2: Especificación de función
+
+§2.4.7¶2 @ shouldpass @ function foo(                                   ) return boolean      begin                         end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(                                   ) return number       begin                         end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(                                   ) return matrix(2, 2) begin                         end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(                                   ) return row(42)      begin                         end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(                                   ) return col(42)      begin                         end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(                                   ) return boolean      begin 42;                     end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(                                   ) return boolean      begin 42; 42;                 end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(                                   ) return boolean      begin 42; 42; 42;             end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(number bar                         ) return boolean      begin                         end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(number bar, number baz             ) return boolean      begin                         end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(number bar, number baz, number quux) return boolean      begin                         end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(number bar, number baz, number quux) return boolean      begin bar;                    end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(number bar, number baz, number quux) return boolean      begin bar + baz;              end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(number bar, number baz, number quux) return boolean      begin bar + baz + quux;       end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(number foo                         ) return boolean      begin                         end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(number foo                         ) return boolean      begin -foo;                   end; program end;
+§2.4.7¶2 @ shouldpass @ function foo(number foo                         ) return boolean      begin use number foo; in end; end; program end;
+
+§2.4.7¶2 @ contexterr @ function foo(number bar, number bar             ) return boolean      begin                         end; program end;
+§2.4.7¶2 @ contexterr @ function foo(boolean      bar                   ) return boolean      begin -bar;                   end; program end;
+§2.4.7¶2 @ contexterr @ function foo(number       bar                   ) return boolean      begin not bar;                end; program end;
+§2.4.7¶2 @ contexterr @ function foo(row(42)      bar                   ) return boolean      begin not bar;                end; program end;
+§2.4.7¶2 @ contexterr @ function foo(col(42)      bar                   ) return boolean      begin not bar;                end; program end;
+§2.4.7¶2 @ contexterr @ function foo(matrix(2, 2) bar                   ) return boolean      begin not bar;                end; program end;
+
+§2.4.7¶2 @ shouldfail @ function foo(42                         ) return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo(foo                        ) return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo(boolean                    ) return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo(number                     ) return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo(row(c)                     ) return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo(col(r)                     ) return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo(row(42)                    ) return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo(col(42)                    ) return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo(  boolean foo  boolean bar ) return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo(, boolean foo, boolean bar ) return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo(  boolean foo, boolean bar,) return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @          foo() return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function    () return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo ) return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo(  return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo   return boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo()        boolean begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo() return         begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo()                begin end; program end;
+§2.4.7¶2 @ shouldfail @ function foo() return boolean       end; program end;
+§2.4.7¶2 @ shouldfail @ function foo() return boolean begin    ; program end;
+§2.4.7¶2 @ shouldfail @ function foo() return boolean          ; program end;
+§2.4.7¶2 @ shouldfail @ function foo() return boolean begin function bar() return boolean begin end; end; program end;
+§2.4.7¶2 @ shouldfail @ program function foo() return boolean begin end; end;
+§2.4.7¶2 @ shouldfail @ program use boolean function; in end; end;
+§2.4.7¶2 @ shouldfail @ program use boolean return  ; in end; end;
+§2.4.7¶2 @ shouldfail @ program use boolean begin   ; in end; end;
+
+
+
+# §2.4.7¶5: Expresión de llamada a función
+
+§2.4.7¶5 @ shouldpass @ function foo(                                         ) return boolean      begin not foo();                 end; program end;
+§2.4.7¶5 @ shouldpass @ function foo(                                         ) return number       begin -   foo();                 end; program end;
+§2.4.7¶5 @ shouldpass @ function foo(                                         ) return matrix(2, 2) begin foo()' + foo();            end; program end;
+§2.4.7¶5 @ shouldpass @ function foo(                                         ) return row   (2   ) begin foo() + { 42 , 42 };       end; program end;
+§2.4.7¶5 @ shouldpass @ function foo(                                         ) return col   (2   ) begin foo() + { 42 : 42 };       end; program end;
+§2.4.7¶5 @ shouldpass @ function foo(number bar                               ) return boolean      begin not foo(42              ); end; program end;
+§2.4.7¶5 @ shouldpass @ function foo(number bar, boolean baz                  ) return boolean      begin not foo(42, true        ); end; program end;
+§2.4.7¶5 @ shouldpass @ function foo(number bar, boolean baz, matrix(1,1) quux) return boolean      begin not foo(42, true, { 42 }); end; program end;
+§2.4.7¶5 @ shouldpass @ function foo(number bar, number  baz, number      quux) return boolean      begin not foo(42, 42, 42      ); end; program end;
+§2.4.7¶5 @ shouldpass @ function foo(number bar                               ) return boolean      begin not foo(42 + 42         ); end; program end;
+§2.4.7¶5 @ shouldpass @ function foo(number bar, number  baz                  ) return boolean      begin not foo(42 + 42, 42 + 42); end; program end;
+§2.4.7¶5 @ shouldpass @ function foo(number bar                               ) return number       begin -   foo(foo(42)         ); end; program end;
+
+§2.4.7¶5 @ contexterr @ program foo(); end;
+§2.4.7¶5 @ contexterr @ function foo(                                         ) return boolean      begin -   foo();                 end; program end;
+§2.4.7¶5 @ contexterr @ function foo(                                         ) return number       begin not foo();                 end; program end;
+§2.4.7¶5 @ contexterr @ function foo(                                         ) return matrix(2, 3) begin foo()' + foo();            end; program end;
+§2.4.7¶5 @ contexterr @ function foo(                                         ) return row   (2   ) begin foo() + { 42 : 42 };       end; program end;
+§2.4.7¶5 @ contexterr @ function foo(                                         ) return col   (2   ) begin foo() + { 42 , 42 };       end; program end;
+§2.4.7¶5 @ contexterr @ function foo(number bar                               ) return boolean      begin not foo(true            ); end; program end;
+§2.4.7¶5 @ contexterr @ function foo(number bar, boolean baz                  ) return boolean      begin not foo(true, true      ); end; program end;
+§2.4.7¶5 @ contexterr @ function foo(number bar, boolean baz                  ) return boolean      begin not foo(42, { 42 }      ); end; program end;
+§2.4.7¶5 @ contexterr @ function foo(number bar, boolean baz, matrix(2,2) quux) return boolean      begin not foo(42, true, { 42 }); end; program end;
+§2.4.7¶5 @ contexterr @ function foo(number bar                               ) return boolean      begin not foo(42 < 42         ); end; program end;
+§2.4.7¶5 @ contexterr @ function foo(number bar, number  baz                  ) return boolean      begin not foo(42 < 42, 42 + 42); end; program end;
+§2.4.7¶5 @ contexterr @ function foo(number bar, number  baz                  ) return boolean      begin not foo(42 + 42, 42 < 42); end; program end;
+§2.4.7¶5 @ contexterr @ function foo(number bar                               ) return boolean      begin not foo(foo(42)         ); end; program end;
+
+§2.4.7¶5 @ shouldfail @ function foo(number bar, number baz, number quux) return boolean begin foo(  42  42  42 ); end; program end;
+§2.4.7¶5 @ shouldfail @ function foo(number bar, number baz, number quux) return boolean begin foo(, 42, 42, 42 ); end; program end;
+§2.4.7¶5 @ shouldfail @ function foo(number bar, number baz, number quux) return boolean begin foo(  42, 42  42 ); end; program end;
+§2.4.7¶5 @ shouldfail @ function foo(number bar                         ) return boolean begin foo(42            ; end; program end;
+§2.4.7¶5 @ shouldfail @ function foo(number bar                         ) return boolean begin foo 42)           ; end; program end;
+§2.4.7¶5 @ shouldfail @ function foo(number bar                         ) return boolean begin foo 42            ; end; program end;
+
+
+
+# §2.4.7¶6: Expresión de retorno
+
+§2.4.7¶6 @ shouldpass @ function foo() return boolean      begin return true;                   end; program end;
+§2.4.7¶6 @ shouldpass @ function foo() return boolean      begin return not true;               end; program end;
+§2.4.7¶6 @ shouldpass @ function foo() return number       begin return 42;                     end; program end;
+§2.4.7¶6 @ shouldpass @ function foo() return number       begin return 42 + 42;                end; program end;
+§2.4.7¶6 @ shouldpass @ function foo() return matrix(1, 1) begin return { 42 };                 end; program end;
+§2.4.7¶6 @ shouldpass @ function foo() return matrix(1, 1) begin return { 42 } + { 42 };        end; program end;
+§2.4.7¶6 @ shouldpass @ function foo() return row   (2   ) begin return { 42 , 42 };            end; program end;
+§2.4.7¶6 @ shouldpass @ function foo() return col   (2   ) begin return { 42 : 42 };            end; program end;
+§2.4.7¶6 @ shouldpass @ function foo() return boolean      begin return true; return true;      end; program end;
+§2.4.7¶6 @ shouldpass @ function foo() return boolean      begin use in       return true; end; end; program end;
+§2.4.7¶6 @ shouldpass @ function foo() return boolean      begin if true then return true; end; end; program end;
+
+§2.4.7¶6 @ contexterr @ function foo() return number       begin return true;                   end; program end;
+§2.4.7¶6 @ contexterr @ function foo() return number       begin return not true;               end; program end;
+§2.4.7¶6 @ contexterr @ function foo() return boolean      begin return 42;                     end; program end;
+§2.4.7¶6 @ contexterr @ function foo() return boolean      begin return 42 + 42;                end; program end;
+§2.4.7¶6 @ contexterr @ function foo() return matrix(2, 2) begin return { 42 };                 end; program end;
+§2.4.7¶6 @ contexterr @ function foo() return matrix(2, 2) begin return { 42 } + { 42 };        end; program end;
+§2.4.7¶6 @ contexterr @ function foo() return row   (3   ) begin return { 42 , 42 };            end; program end;
+§2.4.7¶6 @ contexterr @ function foo() return col   (3   ) begin return { 42 : 42 };            end; program end;
+§2.4.7¶6 @ contexterr @ program return 42; end;
+§2.4.7¶6 @ contexterr @ program use in       return 42; end; end;
+§2.4.7¶6 @ contexterr @ program if true then return 42; end; end;
+
+§2.4.7¶6 @ shouldfail @ function foo() return boolean      begin return     ;                   end; program end;
+§2.4.7¶6 @ shouldfail @ function foo() return boolean      begin return true                    end; program end;
+§2.4.7¶6 @ shouldfail @ program use boolean return; in end; end;
+
+
+
+# §2.4.8¶1: Programa
+
+§2.4.8¶1 @ contexterr @ function foo() return boolean begin end; function foo(          ) return boolean begin end; program end;
+§2.4.8¶1 @ contexterr @ function foo() return boolean begin end; function foo(number bar) return boolean begin end; program end;
+§2.4.8¶1 @ contexterr @ function foo() return boolean begin end; function foo(          ) return number  begin end; program end;
+
+§2.4.8¶1 @ shouldfail @ 
+§2.4.8¶1 @ shouldfail @ program
+§2.4.8¶1 @ shouldfail @ program;
+§2.4.8¶1 @ shouldfail @ program 42
+§2.4.8¶1 @ shouldfail @ program 42;
+§2.4.8¶1 @ shouldfail @ program end
+§2.4.8¶1 @ shouldfail @ program 42; end
+§2.4.8¶1 @ shouldfail @ 42;
+§2.4.8¶1 @ shouldfail @ print 42;
+§2.4.8¶1 @ shouldfail @ ;
+§2.4.8¶1 @ shouldfail @ end;
+§2.4.8¶1 @ shouldfail @ program use boolean program; in end; end;
+
+EOF
