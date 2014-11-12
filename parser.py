@@ -32,16 +32,9 @@ class Function:
 			if self.parametros != None:
 				lista = self.parametros.getParam([])
 			
-			##print tipo.check()
-			#if self.tipo == 'number':
-				#self.tipo = TNum('0')
-			#elif self.tipo == 'boolean':
-				#self.tipo = TBool('false')
-			#else:
-				#self.tipo = TMatrix('1','1')
-			print lista
+			#print lista
 			lista.insert(0,self.tipo.check())
-			print lista
+			#print lista
 			TFunciones[self.Identificador.getValor()] = lista
 		
 	def show(self, depth):
@@ -61,7 +54,7 @@ class Function:
 		if self.parametros != None:
 			self.parametros.check(scope)
 		if self.instrucciones != None:
-			self.instrucciones.check(scope)
+			self.instrucciones.check(scope,TFunciones[self.Identificador.getValor()])
 		if tabla==None:
 			scope.Mostrar()
 		self.siguiente.check(None)
@@ -126,6 +119,27 @@ class ListasSt(Statement):
 			self.AnStatement.check(tabla)
 			self.ManyStatements.check(tabla)
 			
+class ListasSt_Fun(Statement):
+	def __init__(self, AnStatement, ManyStatements):
+		self.AnStatement = AnStatement
+		self.ManyStatements = ManyStatements
+		
+	def show(self, depth):
+		if self.ManyStatements == None:
+			self.AnStatement.show(depth)
+		else:
+			self.AnStatement.show(depth)
+			self.ManyStatements.show(depth)
+			
+	def check(self, tabla,funcion):	
+		if isinstance(self.AnStatement,Return) or isinstance(self.AnStatement,instruccion_IF_Fun) or isinstance(self.AnStatement,instruccion_FOR_Fun) or isinstance(self.AnStatement,instruccion_WHILE_Fun):
+			self.AnStatement.check(tabla,funcion)
+		else:
+			self.AnStatement.check(tabla)
+			
+		if self.ManyStatements != None:
+				self.ManyStatements.check(tabla,funcion)
+				
 class ParametrosProyeccion(ListasSt):
 	def check(self, tabla):
 		primer=self.AnStatement.check(tabla)
@@ -323,6 +337,81 @@ class instruccion_WHILE(Statement):
 			exit(14)
 		self.instrucciones.check(tabla)
 		
+# ------ CONTROL FUNCIONES --------
+class instruccion_IF_Fun(Statement):
+	def __init__(self,condicion,instrucciones,instruccionesElse):
+		self.condicion = condicion
+		self.instrucciones = instrucciones
+		self.instruccionesElse = instruccionesElse
+		
+	def show(self, depth):
+		print('  '*depth+'IF:')
+		self.condicion.show(depth+1)
+		print('  '*depth + 'THEN:')
+		self.instrucciones.show(depth+1)
+		if self.instruccionesElse != None:
+			print('  '*depth + 'ELSE:')
+			self.instruccionesElse.show(depth+1)
+		print('  '*depth + 'END')
+		
+	def check(self,tabla,funcion):
+		tipo = self.condicion.check(tabla)
+		if not isinstance(tipo,TBool):
+			print ("Error: condicion de IF, esperado tipo 'Booleano' encontrado tipo '{}'".format(tipo.tipo))
+			exit(12)
+		if self.instrucciones != None:
+			self.instrucciones.check(tabla,funcion)
+		if self.instruccionesElse != None:
+			self.instruccionesElse.check(tabla,funcion)
+			
+class instruccion_FOR_Fun(Statement):
+	def __init__(self,ID,estructura,instrucciones):
+		self.ID= ID
+		self.estructura = estructura
+		self.instrucciones = instrucciones
+		self.diccionario={}
+		self.diccionario[self.ID.getValor()]=TNum(self.ID.getValor());
+		
+	def show(self,depth):
+		print('  '*depth+'FOR:')
+		self.ID.show(depth+1)
+		print('  '*depth + 'IN:')
+		self.estructura.show(depth+1)
+		print('  '*depth + 'DO:')
+		self.instrucciones.show(depth+1)
+		print('  '*depth + 'END')
+		
+	def check(self,tabla, funcion):
+		scope = Alcance(self.ID,self.diccionario,tabla)
+		if not isinstance(self.estructura.check(scope),TMatrix):
+			print('Error: en for, esperado tipo \'Matriz\', encontrado \'{}\''.format(self.estructura.check(scope).tipo))
+			exit(15)
+		self.instrucciones.check(scope,funcion)
+		if tabla==None:
+			scope.Mostrar()
+		
+	
+class instruccion_WHILE_Fun(Statement):
+	def __init__(self, condicion,instrucciones):
+		self.condicion = condicion
+		self.instrucciones = instrucciones
+		
+	def show(self, depth):
+		print('  '*depth+'WHILE:')
+		self.condicion.show(depth+1)
+		print('  '*depth + 'DO:')
+		self.instrucciones.show(depth+1)
+		print('  '*depth + 'END')
+		
+	def check(self,tabla,funcion):
+		tipo = self.condicion.check(tabla)
+		if not isinstance(tipo,TBool):
+			print ("Error: invalida condicion de WHILE, esperado tipo 'Booleano' encontrado tipo {}".format(tipo.tipo))
+			exit(14)
+		self.instrucciones.check(tabla,funcion)
+		
+#------------------------------------------------------------------
+		
 class Read(Statement):
 	def __init__(self, Identificador):
 		self.Identificador = Identificador
@@ -354,8 +443,20 @@ class Return(Statement):
 		print('  '*depth + 'Return:')
 		self.statement.show(depth + 1)
 		
-	def check(self, tabla):
-		self.statement.check(tabla)
+	def check(self, tabla,funcion):
+		tipo = self.statement.check(tabla)
+		if not isinstance(funcion[0],tipo.__class__):
+			print("Error: tipo en instruccion 'return', esperado tipo {} encontrado tipo {}".format(funcion[0].tipo,tipo.tipo))
+			exit(22)
+		if isinstance(tipo,TMatrix):
+			filafun = funcion[0].getTamFila()
+			filatipo = tipo.getTamFila()
+			colfun = funcion[0].getTamCol()
+			coltipo = tipo.getTamCol()
+			
+			if filafun != filatipo or colfun != coltipo:
+				print ("Error: dimensiones de la matriz de retorno no concuerdan con las definidas por la funcion")
+				exit(22)
 		
 #------------------------------------------------------------------
 class Expresion(object):
@@ -1070,9 +1171,9 @@ def Sintaxer(lx, tokens, textoPrograma):
 		'''function_statement_list : function_statement PUNTOYCOMA
 					| function_statement PUNTOYCOMA function_statement_list'''
 		if len(p)==3:
-			p[0]=ListasSt_Dcl(p[1],None)
+			p[0]=ListasSt_Fun(p[1],None)
 		else:
-			p[0]=ListasSt_Dcl(p[1] ,p[3])
+			p[0]=ListasSt_Fun(p[1] ,p[3])
 	
 	def p_function_RETURN(p):
 		'function_statement : RETURN expression'
@@ -1103,17 +1204,17 @@ def Sintaxer(lx, tokens, textoPrograma):
 		'''function_statement : IF expression THEN function_statement_list ELSE function_statement_list END
 					| IF expression THEN function_statement_list END'''
 		if len(p) == 8:
-			p[0] = instruccion_IF(p[2],p[4],p[6])
+			p[0] = instruccion_IF_Fun(p[2],p[4],p[6])
 		elif len(p)==6:
-			p[0] = instruccion_IF(p[2],p[4],None)
+			p[0] = instruccion_IF_Fun(p[2],p[4],None)
 	
 	def p_fuction_FOR(p):
 		'function_statement : FOR ID IN expression DO function_statement_list END'
-		p[0] = instruccion_FOR(Variable(p[2]),p[4],p[6])
+		p[0] = instruccion_FOR_Fun(Variable(p[2]),p[4],p[6])
 		
 	def p_function_WHILE(p):
 		'function_statement : WHILE expression DO function_statement_list END'
-		p[0] = instruccion_WHILE(p[2], p[4])
+		p[0] = instruccion_WHILE_Fun(p[2], p[4])
 	
 	#-----------------------------------------------------------------------------------
 	### STATEMENTS
