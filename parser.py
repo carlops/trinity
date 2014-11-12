@@ -32,15 +32,16 @@ class Function:
 			if self.parametros != None:
 				lista = self.parametros.getParam([])
 			
-			print tipo
-			if self.tipo == 'number':
-				self.tipo = TNum('0')
-			elif self.tipo == 'boolean':
-				self.tipo = TBool('false')
-			else:
-				self.tipo = TMatrix('1','1')
-				
-			lista.insert(0,self.tipo)
+			##print tipo.check()
+			#if self.tipo == 'number':
+				#self.tipo = TNum('0')
+			#elif self.tipo == 'boolean':
+				#self.tipo = TBool('false')
+			#else:
+				#self.tipo = TMatrix('1','1')
+			print lista
+			lista.insert(0,self.tipo.check())
+			print lista
 			TFunciones[self.Identificador.getValor()] = lista
 		
 	def show(self, depth):
@@ -763,40 +764,42 @@ class Type(Statement):
 	def __init__(self,tipo,fila,col):
 		self.tipo = tipo
 		self.fila = fila
-		self.der = col
+		self.col = col
 	
 	def show(self,depth):
 		pass
 	
-	def check(self,tabla):
+	def check(self):
 		if self.tipo == 'number':
 			return TNum('0')
 		elif self.tipo == 'boolean':
 			return TBool('false')
 		else:
-			if  (self.fila!=None) and (isinstance(self.fila,LiteralNumerico)):
-				if '.' in (self.fila.check(tabla).getValor()):
-					print('Error: invalido retorno de funcion, parametro de matriz esperado tipo Entero')
-					exit(21)
-				else:
-					if int(self.fila.check(tabla).getValor()) <1:
-						print('Error: invalido retorno de funcion, la cantidad de filas debe ser positiva')
+			if  (self.fila!=None):
+				if (isinstance(self.fila,LiteralNumerico)):
+					if '.' in (self.fila.getValor()):
+						print('Error: invalido retorno de funcion, parametro de matriz esperado tipo Entero')
 						exit(21)
-			else:
-				print('Error: invalido retorno de funcion, esperado tipo Numerico en parametro')
-				exit(21)
+					else:
+						if int(self.fila.getValor()) <1:
+							print('Error: invalido retorno de funcion, la cantidad de filas debe ser positiva')
+							exit(21)
+				else:
+					print('Error: invalido retorno de funcion, esperado tipo Numerico en parametro, encontrado tipo {}'.format(self.fila))
+					exit(21)
 				
-			if (self.col!=None) and isinstance(self.col,LiteralNumerico):
-				if '.' in (self.col.check(tabla).getValor()):
-					print('Error: invalido retorno de funcion, parametro de matriz esperado tipo Entero')
-					exit(21)
-				else:
-					if int(self.col.check(tabla).getValor()) <1:
-						print('Error: invalido retorno de funcion, la cantidad de columnas debe ser positiva')
+			if (self.col!=None):
+				if isinstance(self.col,LiteralNumerico):
+					if '.' in (self.col.getValor()):
+						print('Error: invalido retorno de funcion, parametro de matriz esperado tipo Entero')
 						exit(21)
-			else:
-				print('Error: invalido retorno de funcion, esperado tipo Numerico en parametro')
-				exit(21)
+					else:
+						if int(self.col.getValor()) <1:
+							print('Error: invalido retorno de funcion, la cantidad de columnas debe ser positiva')
+							exit(21)
+				else:
+					print('Error: invalido retorno de funcion, esperado tipo Numerico en parametro, encontrado tipo {}'.format(self.col))
+					exit(21)
 				
 			if self.tipo == 'matrix':
 				return TMatrix(self.fila.valor,self.col.valor)
@@ -1227,7 +1230,14 @@ def Sintaxer(lx, tokens, textoPrograma):
 				| MATRIX PARENTESISABRE expression COMA expression PARENTESISCIERRA
 				| ROW PARENTESISABRE expression PARENTESISCIERRA
 				| COL PARENTESISABRE expression PARENTESISCIERRA'''
-		p[0] = p[1]
+		if len(p)==2:
+			p[0] = Type(p[1],None,None)
+		elif len(p)==7:
+			p[0] = Type(p[1],p[3],p[5])
+		elif len(p)==5 and p[1]=='row':
+			p[0] = Type(p[1],None,p[3])
+		elif len(p)==5 and p[1]=='col':
+			p[0] = Type(p[1],p[3],None)
 		
 # --------------------------------------------------------------------------
 	### EXPRESIONES 
