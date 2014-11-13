@@ -80,7 +80,8 @@ class Bloque(Statement):
 		self.declaraciones=declaraciones
 		self.instrucciones=instrucciones
 		self.diccionario={}
-		self.diccionario=self.declaraciones.getDict();
+		if self.declaraciones != None:
+			self.diccionario=self.declaraciones.getDict();
 		#print(self.diccionario)
 		
 	def show(self,depth): ## este show hay que cambiarlo por check
@@ -94,8 +95,10 @@ class Bloque(Statement):
 	def check(self,tabla):
 		
 		scope = Alcance(Variable('main'),self.diccionario,tabla)
-		self.declaraciones.check(scope)
-		self.instrucciones.check(scope)
+		if self.declaraciones != None:
+			self.declaraciones.check(scope)
+		if self.instrucciones != None:
+			self.instrucciones.check(scope)
 		if tabla==None:
 			scope.Mostrar()
 	
@@ -313,7 +316,8 @@ class instruccion_FOR(Statement):
 		if not isinstance(self.estructura.check(scope),TMatrix):
 			print('Error: en for, esperado tipo \'Matriz\', encontrado \'{}\''.format(self.estructura.check(scope).tipo))
 			exit(15)
-		self.instrucciones.check(scope)
+		if self.instrucciones != None:
+			self.instrucciones.check(scope)
 		if tabla==None:
 			scope.Mostrar()
 		
@@ -335,7 +339,8 @@ class instruccion_WHILE(Statement):
 		if not isinstance(tipo,TBool):
 			print ("Error: invalida condicion de WHILE, esperado tipo 'Booleano' encontrado tipo {}".format(tipo.tipo))
 			exit(14)
-		self.instrucciones.check(tabla)
+		if self.instrucciones != None:
+			self.instrucciones.check(tabla)
 		
 # ------ CONTROL FUNCIONES --------
 class instruccion_IF_Fun(Statement):
@@ -386,7 +391,8 @@ class instruccion_FOR_Fun(Statement):
 		if not isinstance(self.estructura.check(scope),TMatrix):
 			print('Error: en for, esperado tipo \'Matriz\', encontrado \'{}\''.format(self.estructura.check(scope).tipo))
 			exit(15)
-		self.instrucciones.check(scope,funcion)
+		if self.instrucciones != None:
+			self.instrucciones.check(scope,funcion)
 		if tabla==None:
 			scope.Mostrar()
 		
@@ -551,7 +557,7 @@ class OperacionBinaria(Expresion):
 		### HAY OPERADORES BINARIOS QUE RETORNAN BOOLEANOS  ><##
 		### FALTA VERIFICACION DE MATRIZ ###
 		else:
-			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
+			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq.tipo,der.tipo,operador))
 			exit(6)
 
 class OperacionBinariaCruzada(OperacionBinaria):
@@ -1143,21 +1149,23 @@ def Sintaxer(lx, tokens, textoPrograma):
 	#-----------------------------------------------------------------------------------
 	### FUNCTION statements
 	
-	#def p_function_list(p):
-		#'''function_list : FUNCTION ID PARENTESISABRE statement_decl_param PARENTESISCIERRA RETURN type BEGIN function_statement_list END PUNTOYCOMA
-					#| FUNCTION ID PARENTESISABRE statement_decl_param PARENTESISCIERRA RETURN type BEGIN function_statement_list END PUNTOYCOMA function_list'''
-		#if len(p)==12:
-			#p[0] = Function(Variable(p[2]), p[4], p[7],p[9],None)
-		#else:
-			#p[0] = Function(Variable(p[2]), p[4], p[7],p[9],p[12])
-	
 	def p_function_call(p):
 		'''expression : ID PARENTESISABRE parametro_funcion PARENTESISCIERRA'''
 		p[0] = LiteralFuncion(Variable(p[1]),p[3])
 		
 	def p_bloque_function(p):
-		'function_statement : USE statement_decl_list IN function_statement_list END'
-		p[0] = Bloque(p[2],p[4])
+		'''function_statement : USE statement_decl_list IN function_statement_list END
+					| USE IN function_statement_list END
+					| USE statement_decl_list IN END
+					| USE IN END'''
+		if len(p) == 6:
+			p[0]=Bloque(p[2],p[4])
+		elif len(p) == 5 and p[2] == 'in':
+			p[0] = Bloque(None,p[3])
+		elif len(p) == 5 and isinstance(p[2],ListasSt_Dcl):
+			p[0] = Bloque(p[2],None)
+		elif len(p) == 4:
+			p[0] = Bloque(None, None)
 		
 	def p_parametro_function(p):
 		"""parametro_funcion : expression
@@ -1202,25 +1210,51 @@ def Sintaxer(lx, tokens, textoPrograma):
 	# instrucciones de control
 	def p_function_IF(p):
 		'''function_statement : IF expression THEN function_statement_list ELSE function_statement_list END
-					| IF expression THEN function_statement_list END'''
+					| IF expression THEN function_statement_list END
+					| IF expression THEN ELSE END
+					| IF expression THEN function_statement_list ELSE END
+					| IF expression THEN ELSE function_statement_list END
+					| IF expression THEN END'''
 		if len(p) == 8:
 			p[0] = instruccion_IF_Fun(p[2],p[4],p[6])
-		elif len(p)==6:
+		elif (len(p)==6 and isinstance(p[4], ListasSt_Fun)) or (len(p)==7 and isinstance(p[4],ListasSt_Fun)):
 			p[0] = instruccion_IF_Fun(p[2],p[4],None)
+		elif (len(p)==6 and p[4]=='else') or len(p) == 5:
+			p[0] = instruccion_IF_Fun(p[2],None,None)
+		elif len(p)==7 and p[4] == 'else':
+			p[0] = instruccion_IF_Fun(p[2],None,p[5])
 	
 	def p_fuction_FOR(p):
-		'function_statement : FOR ID IN expression DO function_statement_list END'
-		p[0] = instruccion_FOR_Fun(Variable(p[2]),p[4],p[6])
+		'''function_statement : FOR ID IN expression DO function_statement_list END
+					| FOR ID IN expression DO END'''
+		if len(p)== 8:
+			p[0] = instruccion_FOR_Fun(Variable(p[2]),p[4],p[6])
+		else:
+			p[0] = instruccion_FOR_Fun(Variable(p[2]),p[4],None)
 		
 	def p_function_WHILE(p):
-		'function_statement : WHILE expression DO function_statement_list END'
-		p[0] = instruccion_WHILE_Fun(p[2], p[4])
+		'''function_statement : WHILE expression DO function_statement_list END
+					| WHILE expression DO END'''
+		if len(p) == 6:
+			p[0] = instruccion_WHILE_Fun(p[2], p[4])
+		else:
+			p[0] = instruccion_WHILE_Fun(p[2], None)
 	
 	#-----------------------------------------------------------------------------------
 	### STATEMENTS
 	def p_statement_block(p):
-		'statement : USE statement_decl_list IN statement_list END'
-		p[0]=Bloque(p[2],p[4])
+		'''statement : USE statement_decl_list IN statement_list END
+					| USE IN statement_list END
+					| USE statement_decl_list IN END
+					| USE IN END'''
+		if len(p) == 6:
+			p[0]=Bloque(p[2],p[4])
+		elif len(p) == 5 and p[2] == 'in':
+			p[0] = Bloque(None,p[3])
+		elif len(p) == 5 and isinstance(p[2],ListasSt_Dcl):
+			p[0] = Bloque(p[2],None)
+		elif len(p) == 4:
+			p[0] = Bloque(None, None)
 	
 	def p_statement_list(p):
 		'''statement_list : statement PUNTOYCOMA
@@ -1309,19 +1343,35 @@ def Sintaxer(lx, tokens, textoPrograma):
 	# instrucciones de control
 	def p_IF(p):
 		'''statement : IF expression THEN statement_list ELSE statement_list END
-					| IF expression THEN statement_list END'''
+					| IF expression THEN statement_list END
+					| IF expression THEN ELSE END
+					| IF expression THEN statement_list ELSE END
+					| IF expression THEN ELSE statement_list END
+					| IF expression THEN END'''
 		if len(p) == 8:
 			p[0] = instruccion_IF(p[2],p[4],p[6])
-		elif len(p)==6:
+		elif (len(p)==6 and isinstance(p[4], ListasSt)) or (len(p)==7 and isinstance(p[4],ListasSt)):
 			p[0] = instruccion_IF(p[2],p[4],None)
+		elif (len(p)==6 and p[4]=='else') or len(p) == 5:
+			p[0] = instruccion_IF(p[2],None,None)
+		elif len(p)==7 and p[4] == 'else':
+			p[0] = instruccion_IF(p[2],None,p[5])
 	
 	def p_FOR(p):
-		'statement : FOR ID IN expression DO statement_list END'
-		p[0] = instruccion_FOR(Variable(p[2]),p[4],p[6])
+		'''statement : FOR ID IN expression DO statement_list END
+					| FOR ID IN expression DO END'''
+		if len(p) == 8:
+			p[0] = instruccion_FOR(Variable(p[2]),p[4],p[6])
+		else:
+			p[0] = instruccion_FOR(Variable(p[2]),p[4],None)
 		
 	def p_WHILE(p):
-		'statement : WHILE expression DO statement_list END'
-		p[0] = instruccion_WHILE(p[2], p[4])
+		'''statement : WHILE expression DO statement_list END
+					| WHILE expression DO END'''
+		if len(p) == 6:
+			p[0] = instruccion_WHILE(p[2], p[4])
+		else:
+			p[0] = instruccion_WHILE(p[2], None)
 	
 # --------------------------------------------------------------------------
 	### AUXILIAR 
