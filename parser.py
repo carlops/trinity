@@ -572,7 +572,7 @@ class OperacionBinariaCruzada(OperacionBinaria):
 		elif (isinstance(izq,TMatrix) and isinstance(der,TNum)):
 			return izq
 		else:
-			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
+			print ("Error: las expresiones {} y {} no pueden ser operadas con el operador {} ".format(izq.tipo,der.tipo,operador))
 			exit(15)
 
 class OperacionBinariaSRM(OperacionBinaria):
@@ -600,7 +600,7 @@ class OperacionBinariaSRM(OperacionBinaria):
 					print ("Error: dimensiones de matrices incorrectas, no pueden ser operadas con el operador {} ".format(operador))
 					exit(6)
 		else:
-			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
+			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq.tipo,der.tipo,operador))
 			exit(6)
 			
 class OperacionBinariaComp(OperacionBinaria):
@@ -639,7 +639,7 @@ class OperacionBinariaIgualdad(OperacionBinaria):
 			else:
 				return TBool('true')
 		else:
-			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
+			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq.tipo,der.tipo,operador))
 			exit(6)
 		
 class OperacionBinariaOpBool(OperacionBinaria):
@@ -649,10 +649,10 @@ class OperacionBinariaOpBool(OperacionBinaria):
 		operandoder = self.hijos['operando derecho'].check(tabla)
 		#print operandoder
 		if not isinstance(operandoizq,TBool):
-			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
+			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq.tipo,der.tipo,operador))
 			exit(12)
 		if not isinstance(operandoder,TBool):
-			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq,der,operador))
+			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq.tipo,der.tipo,operador))
 			exit(12)
 		return operandoizq
 		
