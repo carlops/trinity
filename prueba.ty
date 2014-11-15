@@ -1,1 +1,1 @@
-program use row   (42  ) foo; in for foo in foo    do            end; end; end;
+program   -{ 42 }   ; end;

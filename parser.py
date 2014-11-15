@@ -101,6 +101,33 @@ class Bloque(Statement):
 			self.instrucciones.check(scope)
 		if tabla==None:
 			scope.Mostrar()
+			
+class Bloque_Fun(Statement):
+	def __init__(self,declaraciones,instrucciones):
+		self.declaraciones=declaraciones
+		self.instrucciones=instrucciones
+		self.diccionario={}
+		if self.declaraciones != None:
+			self.diccionario=self.declaraciones.getDict();
+		#print(self.diccionario)
+		
+	def show(self,depth): ## este show hay que cambiarlo por check
+		print('  '*depth+'USE:')
+		self.declaraciones.show(depth+1)
+		print('  '*depth+'IN:')
+		self.instrucciones.show(depth+1)
+		print('  '*depth+'END')
+		#self.check(self.scope)
+		
+	def check(self,tabla,funcion):
+		
+		scope = Alcance(Variable('main'),self.diccionario,tabla)
+		if self.declaraciones != None:
+			self.declaraciones.check(scope)
+		if self.instrucciones != None:
+			self.instrucciones.check(scope,funcion)
+		if tabla==None:
+			scope.Mostrar()
 	
 
 class ListasSt(Statement):
@@ -135,7 +162,7 @@ class ListasSt_Fun(Statement):
 			self.ManyStatements.show(depth)
 			
 	def check(self, tabla,funcion):	
-		if isinstance(self.AnStatement,Return) or isinstance(self.AnStatement,instruccion_IF_Fun) or isinstance(self.AnStatement,instruccion_FOR_Fun) or isinstance(self.AnStatement,instruccion_WHILE_Fun):
+		if isinstance(self.AnStatement,Return) or isinstance(self.AnStatement,instruccion_IF_Fun) or isinstance(self.AnStatement,instruccion_FOR_Fun) or isinstance(self.AnStatement,instruccion_WHILE_Fun) or isinstance(self.AnStatement,Bloque_Fun):
 			self.AnStatement.check(tabla,funcion)
 		else:
 			self.AnStatement.check(tabla)
@@ -313,7 +340,7 @@ class instruccion_FOR(Statement):
 		
 	def check(self,tabla):
 		scope = Alcance(self.ID,self.diccionario,tabla)
-		if not isinstance(self.estructura.check(scope),TMatrix):
+		if not isinstance(self.estructura.check(tabla),TMatrix):
 			print('Error: en for, esperado tipo \'Matriz\', encontrado \'{}\''.format(self.estructura.check(scope).tipo))
 			exit(15)
 		if self.instrucciones != None:
@@ -388,7 +415,7 @@ class instruccion_FOR_Fun(Statement):
 		
 	def check(self,tabla, funcion):
 		scope = Alcance(self.ID,self.diccionario,tabla)
-		if not isinstance(self.estructura.check(scope),TMatrix):
+		if not isinstance(self.estructura.check(tabla),TMatrix):
 			print('Error: en for, esperado tipo \'Matriz\', encontrado \'{}\''.format(self.estructura.check(scope).tipo))
 			exit(15)
 		if self.instrucciones != None:
@@ -487,11 +514,11 @@ class OperacionUnaria(Expresion):
 		tipo=self.hijo.check(tabla)
 		if self.name=='Negacion':
 			if not isinstance(tipo,TBool):
-				print ("Error: esperado tipo Booleano, encontrado "+tipo)
+				print ("Error: esperado tipo Booleano, encontrado {} ".format(tipo))
 				exit(13)
 		else:
-			if not isinstance(tipo,TNum):
-				print ("Error: esperado tipo Numerico, encontrado "+tipo)
+			if not (isinstance(tipo,TNum) or isinstance(tipo,TMatrix)):
+				print ("Error: esperado tipo 'Numerico' o 'Matriz', encontrado {}".format(tipo))
 				exit(13)
 		return tipo
 		
@@ -744,7 +771,10 @@ class Transpuesta(Expresion):
 		if not isinstance(tipo,TMatrix):
 			print("Error: Transpuesta, esperado tipo Matriz, encontrado "+tipo.tipo)
 			exit(14)
-		return tipo
+		
+		fila = tipo.getTamFila()
+		col = tipo.getTamCol()
+		return TMatrix(col,fila)
 		
 		
 #-------------------------------------------------------------------------------------
@@ -789,8 +819,14 @@ class LiteralFuncion(Expresion):
 			print("Error: funcion '{}' no declarada".format(fun))
 			exit(16)
 		parametrosFun = TFunciones[fun]
-		return self.parametros.check(tabla,parametrosFun)
-	
+		if self.parametros != None:
+			return self.parametros.check(tabla,parametrosFun)
+		elif len(parametrosFun)==1 and self.parametros == None:
+			return parametrosFun[0]
+		elif len(parametrosFun)>1 and self.parametros == None:
+			print ("Error: numero de parametros invalido en llamada a funcion")
+			exit(17)
+			
 class ParametrosFuncion(Expresion):
 	def __init__(self,AnStatement,ManyStatements):
 		self.AnStatement = AnStatement
@@ -1049,14 +1085,22 @@ class TMatrix(Tipo):
 	def __init__(self,TamFila,TamColumna):
 		self.TamFila=TamFila
 		self.TamColumna=TamColumna
+		
 	def getTamFila(self):
-		#return self.TamFila.getValor()
 		return self.TamFila
+	
+	def setTamFila(self,valor):
+		self.getTamFila = valor
+		
 	def getTamCol(self):
-		#return self.TamColumna.getValor()
 		return self.TamColumna
+	
+	def setTamCol(self,valor):
+		self.TamColumna = valor
+	
 	def getTipo(self):
 		return self.tipo
+	
 	def toStr(self):
 		return '{}({},{})'.format(self.tipo,self.TamFila,self.TamColumna)
 
@@ -1150,8 +1194,12 @@ def Sintaxer(lx, tokens, textoPrograma):
 	### FUNCTION statements
 	
 	def p_function_call(p):
-		'''expression : ID PARENTESISABRE parametro_funcion PARENTESISCIERRA'''
-		p[0] = LiteralFuncion(Variable(p[1]),p[3])
+		'''expression : ID PARENTESISABRE parametro_funcion PARENTESISCIERRA
+							| ID PARENTESISABRE PARENTESISCIERRA'''
+		if len(p) == 5:
+			p[0] = LiteralFuncion(Variable(p[1]),p[3])
+		else:
+			p[0] = LiteralFuncion(Variable(p[1]),None)
 		
 	def p_bloque_function(p):
 		'''function_statement : USE statement_decl_list IN function_statement_list END
@@ -1159,13 +1207,13 @@ def Sintaxer(lx, tokens, textoPrograma):
 					| USE statement_decl_list IN END
 					| USE IN END'''
 		if len(p) == 6:
-			p[0]=Bloque(p[2],p[4])
+			p[0]=Bloque_Fun(p[2],p[4])
 		elif len(p) == 5 and p[2] == 'in':
-			p[0] = Bloque(None,p[3])
+			p[0] = Bloque_Fun(None,p[3])
 		elif len(p) == 5 and isinstance(p[2],ListasSt_Dcl):
-			p[0] = Bloque(p[2],None)
+			p[0] = Bloque_Fun(p[2],None)
 		elif len(p) == 4:
-			p[0] = Bloque(None, None)
+			p[0] = Bloque_Fun(None, None)
 		
 	def p_parametro_function(p):
 		"""parametro_funcion : expression
