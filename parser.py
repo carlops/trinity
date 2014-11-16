@@ -11,6 +11,7 @@ from clsToken import Token
 import ply.yacc as yacc
 import re
 import sys
+from decimal import *
 
 TFunciones = {}
 
@@ -93,7 +94,6 @@ class Bloque(Statement):
 		#self.check(self.scope)
 		
 	def check(self,tabla):
-		
 		scope = Alcance(Variable('main'),self.diccionario,tabla)
 		if self.declaraciones != None:
 			self.declaraciones.check(scope)
@@ -102,6 +102,13 @@ class Bloque(Statement):
 		if tabla==None:
 			scope.Mostrar()
 			
+	def run(self,pila):
+		scope = Alcance(Variable('main'),self.diccionario,pila)
+		if self.declaraciones != None:
+			self.declaraciones.run(scope)
+		if self.instrucciones != None:
+			self.instrucciones.run(scope)
+	
 class Bloque_Fun(Statement):
 	def __init__(self,declaraciones,instrucciones):
 		self.declaraciones=declaraciones
@@ -120,15 +127,20 @@ class Bloque_Fun(Statement):
 		#self.check(self.scope)
 		
 	def check(self,tabla,funcion):
-		
-		scope = Alcance(Variable('main'),self.diccionario,tabla)
+		scope = Alcance(Variable('fun'),self.diccionario,tabla)
 		if self.declaraciones != None:
 			self.declaraciones.check(scope)
 		if self.instrucciones != None:
 			self.instrucciones.check(scope,funcion)
 		if tabla==None:
 			scope.Mostrar()
-	
+		
+	def run(self,pila):
+		scope = Alcance(Variable('fun'),self.diccionario,pila)
+		if self.declaraciones != None:
+			self.declaraciones.run(scope)
+		if self.instrucciones != None:
+			self.instrucciones.run(scope)
 
 class ListasSt(Statement):
 	def __init__(self, AnStatement, ManyStatements):
@@ -149,6 +161,13 @@ class ListasSt(Statement):
 			self.AnStatement.check(tabla)
 			self.ManyStatements.check(tabla)
 			
+	def run(self,pila):
+		if self.ManyStatements == None:
+			self.AnStatement.run(pila)
+		else:
+			self.AnStatement.run(pila)
+			self.ManyStatements.run(pila)
+	
 class ListasSt_Fun(Statement):
 	def __init__(self, AnStatement, ManyStatements):
 		self.AnStatement = AnStatement
@@ -170,6 +189,13 @@ class ListasSt_Fun(Statement):
 		if self.ManyStatements != None:
 				self.ManyStatements.check(tabla,funcion)
 				
+	def run(self,pila):
+		if self.ManyStatements == None:
+			self.AnStatement.run(pila)
+		else:
+			self.AnStatement.run(pila)
+			self.ManyStatements.run(pila)
+	
 class ParametrosProyeccion(ListasSt):
 	def check(self, tabla):
 		primer=self.AnStatement.check(tabla)
@@ -204,6 +230,8 @@ class ParametrosMatriz(Statement):
 			self.OtrosParametros.show(depth)
 			
 	def check(self, tabla):
+		#print('Aki:')
+		#print(self.UnParametro)
 		if self.OtrosParametros == None:
 			tipo = self.UnParametro.check(tabla)
 			if not isinstance(tipo,TNum):
@@ -216,6 +244,10 @@ class ParametrosMatriz(Statement):
 			else:
 				print("Error: parametro invalido en matriz encontrado tipo '{}' esperado tipo 'Numerico'".format(tipo))
 				exit(8)
+		#fila=self.run(tabla)
+		#print('Fila:')
+		#for x in fila:
+			#print(x.run(tabla))
 		return self.size()
 		
 	def size(self):
@@ -223,6 +255,19 @@ class ParametrosMatriz(Statement):
 			return 1
 		else:
 			return 1 + self.OtrosParametros.size()
+	
+	def run(self,pila):
+		fila=[]
+		self.getFila(fila,pila)
+		return fila
+	
+	def getFila(self,fila,pila):
+		fila.append(self.UnParametro.run(pila))
+		if self.OtrosParametros == None:
+			return fila
+		else:
+			return self.OtrosParametros.getFila(fila,pila)
+			#return fila.extend(self.OtrosParametros.getFila(fila))
 		
 class ListasSt_Dcl(Statement):
 	def __init__(self, AnStatement, ManyStatements):
@@ -261,6 +306,11 @@ class ListasSt_Dcl(Statement):
 			return lista
 		else:
 			return self.ManyStatements.getParam(lista)
+		
+	def run(self,pila):
+		self.AnStatement.run(pila)
+		if self.ManyStatements != None:
+			self.ManyStatements.run(pila)
 		 
 class LiteralMatricial(Statement):
 	def __init__(self, parametroActual, restoParametros):
@@ -268,6 +318,7 @@ class LiteralMatricial(Statement):
 		self.restoParametros = restoParametros
 		self.NumFilas=1
 		self.NumCol=0
+		self.valor=[]
 		
 	def show(self, depth):
 		if self.restoParametros == None:
@@ -277,13 +328,14 @@ class LiteralMatricial(Statement):
 			print(" "*(depth+4) + "DOSPUNTOS")
 			self.restoParametros.show(depth)
 		
-	def check(self,tabla): ######### CAMBIAR #########
+	def check(self,tabla): 
 		self.NumCol= self.parametroActual.check(tabla)
 		self.NumFilas = self.checkMatriz(1,self.NumCol,tabla)
 		filas = str(self.NumFilas)
 		columnas = str(self.NumCol)
-		return TMatrix(filas,columnas)
-
+		self.valor = [[0 for x in range(self.NumCol)] for x in range(self.NumFilas)]
+		return TMatrix(filas,columnas,[])
+	
 	def checkMatriz(self,filas,columnas,tabla):
 		if columnas!= self.parametroActual.check(tabla):
 			print("Error en Literal Matricial: las columnas deben tener la misma longitud")
@@ -293,7 +345,22 @@ class LiteralMatricial(Statement):
 			filas = filas + self.restoParametros.checkMatriz(filas,columnas,tabla)
 		return filas
 		
-		
+	def run(self,pila):
+		matriz=[]
+		self.getMatrix(pila,matriz)
+		#filaActual= self.parametroActual.run(pila)
+		#if not restoParametros== None
+			#filaActual.extend(restoParametros.run(pila))
+			#filasRestantes = self.checkMatriz(1,self.NumCol,pila)
+		return TMatrix(self.NumFilas,self.NumCol,matriz)
+	
+	def getMatrix(self,pila,matriz):
+		matriz.append(self.parametroActual.run(pila))
+		if self.restoParametros == None:
+			return matriz
+		else:
+			return self.restoParametros.getMatrix(pila,matriz)
+	
 #---------ESTRUCTURAS DE CONTROL-----------------------
 class instruccion_IF(Statement):
 	def __init__(self,condicion,instrucciones,instruccionesElse):
@@ -536,6 +603,10 @@ class Agrupadores(Expresion):
 	def check(self,tabla):
 		return self.expresion.check(tabla)
 	
+	def run(self,pila):
+		print(self.expresion)
+		return self.expresion.run(pila)
+	
 class Proyeccion(Expresion):
 	def __init__(self,expresion,parametros):
 		self.expresion = expresion
@@ -581,8 +652,6 @@ class OperacionBinaria(Expresion):
 	def equals(self,izq,der,operador):
 		if (isinstance(izq,TNum) and isinstance(der,TNum)):
 			return izq
-		### HAY OPERADORES BINARIOS QUE RETORNAN BOOLEANOS  ><##
-		### FALTA VERIFICACION DE MATRIZ ###
 		else:
 			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq.tipo,der.tipo,operador))
 			exit(6)
@@ -608,6 +677,7 @@ class OperacionBinariaSRM(OperacionBinaria):
 		#print operandoizq
 		operandoder = self.hijos['operando derecho'].check(tabla)
 		#print operandoder
+		self.run(tabla)
 		return self.equals(operandoizq,operandoder,self.name)
 	
 	def equals(self,izq,der,operador):
@@ -629,6 +699,56 @@ class OperacionBinariaSRM(OperacionBinaria):
 		else:
 			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq.tipo,der.tipo,operador))
 			exit(6)
+			
+	def run(self,pila):
+		izq = self.hijos['operando izquierdo'].run(pila)
+		der = self.hijos['operando derecho'].run(pila)
+		if isinstance(izq,TMatrix):
+			mIzq=izq.getValor()
+			mDer=der.getValor()
+			mTotal= [[0 for x in range(izq.getTamCol())] for x in range(izq.getTamFila())]
+			if self.name=='Suma':
+				for row in range(izq.getTamCol()):
+					for col in range(izq.getTamFila()):
+						print(str(col)+','+str(row)+': '+str(mIzq[col][row])+','+str(mDer[col][row]))
+						mTotal[col][row]=(mIzq[col][row].run(pila) + mDer[col][row].run(pila) )
+				print("sumaMat:")
+				print(mTotal)
+				return TMatrix(izq.getTamFila(),izq.getTamCol(),mTotal)
+			
+			elif self.name=='Resta':
+				for row in range(izq.getTamCol()):
+					for col in range(izq.getTamFila()):
+						print(str(col)+','+str(row)+': '+str(mIzq[col][row])+','+str(mDer[col][row]))
+						mTotal[col][row]=(mIzq[col][row].run(pila) - mDer[col][row].run(pila) )
+				print("sumaMat:")
+				print(mTotal)
+				return TMatrix(izq.getTamFila(),izq.getTamCol(),mTotal)
+			elif self.name=='Multiplicacion': ###### hay que ponerla como es #######
+				for row in range(izq.getTamCol()):
+					for col in range(izq.getTamFila()):
+						print(str(col)+','+str(row)+': '+str(mIzq[col][row])+','+str(mDer[col][row]))
+						mTotal[col][row]=(mIzq[col][row].run(pila) * mDer[row][col].run(pila) )
+				print("sumaMat:")
+				print(mTotal)
+				return TMatrix(izq.getTamFila(),izq.getTamCol(),mTotal)
+			else:
+				exit(222)
+			
+		elif isinstance(izq,TNum):
+			if self.name=='Suma':
+				print(izq.run(pila) + der.run(pila))
+				return TNum(izq.run(pila) + der.run(pila))
+			elif self.name=='Resta':
+				print(izq.run(pila) - der.run(pila))
+				return TNum(izq.run(pila) - der.run(pila))
+			elif self.name=='Multiplicacion':
+				print(izq.run(pila) * der.run(pila))
+				return TNum(izq.run(pila) * der.run(pila))
+			else:
+				exit(223)
+		else:
+			exit(224)
 			
 class OperacionBinariaComp(OperacionBinaria):
 	def check(self,tabla):
@@ -774,7 +894,7 @@ class Transpuesta(Expresion):
 		
 		fila = tipo.getTamFila()
 		col = tipo.getTamCol()
-		return TMatrix(col,fila)
+		return TMatrix(col,fila,[])
 		
 		
 #-------------------------------------------------------------------------------------
@@ -788,6 +908,8 @@ class LiteralNumerico(Expresion):
 		return TNum(self.valor)
 	def getValor(self):
 		return self.valor
+	def run(self,pila):
+		return TNum(int(self.valor))
 	
 class Booleano(Expresion):
 	def __init__(self,booleano):
@@ -796,18 +918,28 @@ class Booleano(Expresion):
 		print('  '*depth + 'Booleano:\n'+'  '*(depth+1) + 'valor: '+str(self.valor))
 	def check(self,tabla):
 		return TBool(self.valor)
-		
+	def getValor(self):
+		return self.valor
+	def run(self,pila):
+		if valor=='true':
+			return TBool(True)
+		elif valor=='false': 
+			return TBool(False)
+		else:
+			exit(1000)
+	
 class String(Expresion):
 	def __init__(self,valor):
 		self.valor = valor
-		
 	def show(self,depth):
 		print ('  '*depth + 'String: '+ str(self.valor))
-		
 	def check(self,tabla):
 		pass
+	def getValor(self):
+		return self.valor
+	def run(self,valor):
+		return self.valor
 	
-##### TAL VEZ SIRVA ESTOOOOO ya tienen unas p_funciones y tal
 class LiteralFuncion(Expresion):
 	def __init__(self,Identificador,parametros):
 		self.Identificador = Identificador
@@ -826,7 +958,7 @@ class LiteralFuncion(Expresion):
 		elif len(parametrosFun)>1 and self.parametros == None:
 			print ("Error: numero de parametros invalido en llamada a funcion")
 			exit(17)
-			
+	
 class ParametrosFuncion(Expresion):
 	def __init__(self,AnStatement,ManyStatements):
 		self.AnStatement = AnStatement
@@ -945,11 +1077,11 @@ class Type(Statement):
 					exit(21)
 				
 			if self.tipo == 'matrix':
-				return TMatrix(self.fila.valor,self.col.valor)
+				return TMatrix(self.fila.valor,self.col.valor,[])
 			elif self.tipo == 'col':
-				return TMatrix(self.fila.valor,'1')
+				return TMatrix(self.fila.valor,'1',[])
 			elif self.tipo == 'row':
-				return TMatrix('1',self.col.valor)
+				return TMatrix('1',self.col.valor,[])
 			else:
 				print("Error: tipo de retorno invalido: {}".format(tipo))
 				exit(21)
@@ -975,7 +1107,7 @@ class DeclaracionMatriz(Statement):
 			self.Identificador.show(depth)
 		
 	def getTipo(self):
-		return TMatrix(self.fila.valor,self.col.valor)
+		return TMatrix(self.fila.valor,self.col.valor,[])
 	
 	def getValor(self):
 		return self.Identificador.valor
@@ -1036,7 +1168,7 @@ class ColRow(Statement):
 			self.fila=self.valor
 		elif self.nombre=='Vector Fila':
 			self.col=self.valor
-		return TMatrix(self.fila.valor,self.col.valor)
+		return TMatrix(self.fila.valor,self.col.valor,[])
 
 class Variable(Expresion): 
 	def __init__(self,valor):
@@ -1068,7 +1200,11 @@ class TNum(Tipo):
 		return self.tipo
 	def toStr(self):
 		return self.tipo
-		
+	#def getValorN(self):
+		#return Decimal(self.valor)
+	def run(self,pila):
+		return Decimal(self.valor)
+	
 class TBool(Tipo):
 	tipo='Booleano'
 	def __init__(self,valor):
@@ -1082,9 +1218,10 @@ class TBool(Tipo):
 	
 class TMatrix(Tipo):
 	tipo = 'Matriz'
-	def __init__(self,TamFila,TamColumna):
+	def __init__(self,TamFila,TamColumna,valor):
 		self.TamFila=TamFila
 		self.TamColumna=TamColumna
+		self.valor=valor
 		
 	def getTamFila(self):
 		return self.TamFila
@@ -1104,6 +1241,9 @@ class TMatrix(Tipo):
 	def toStr(self):
 		return '{}({},{})'.format(self.tipo,self.TamFila,self.TamColumna)
 
+	def getValor(self):
+		return self.valor
+		
 class Alcance: #decls se crea al ver un USE o un FOR
 	def __init__ (self,nombre,decls,padre):
 		self.nombre = nombre
