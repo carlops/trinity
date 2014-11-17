@@ -258,8 +258,8 @@ class LLAVESCIERRA(Token):
 
 class STRING(Token):
 	#ER=re.compile(r'".*?"')
-	#r'".*?"'#non-greedy
-	ER=re.compile(r'\"[^"\\\\]*(?:\\\\.[^"\\\\]*)*\"')
+	ER=re.compile(r'"([^\\\"]*?([\\][\"\\n])?)*"')#non-greedy
+	#ER=re.compile(r'\"[^"\\\\]*(?:\\\\.[^"\\\\]*)*\"')
 	'/"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"'#probar luego
 
 class COMILLASIMPLE(Token):
