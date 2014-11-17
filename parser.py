@@ -71,9 +71,8 @@ class Program:
 		
 	def check(self,tabla):
 		if self.cuerpo!=None:
-			pdb.set_trace()
 			self.cuerpo.check(tabla)
-			self.cuerpo.run(tabla)
+			self.cuerpo.run(tabla)  ###### AQUI EMPIEZA EL RUN ######
 	
 	def run(self,pila):
 		if self.cuerpo!=None:
@@ -87,9 +86,14 @@ class Bloque(Statement):
 		self.declaraciones=declaraciones
 		self.instrucciones=instrucciones
 		self.diccionario={}
+		self.diccionarioRun={}
 		if self.declaraciones != None:
-			self.diccionario=self.declaraciones.getDict();
-		#print(self.diccionario)
+			self.diccionario=self.declaraciones.getDict()
+			#pila=Alcance(Variable('main'),self.diccionarioRun,None)
+			self.diccionarioRun = self.declaraciones.getDictRun()
+			#print(self.diccionarioRun)
+			#for i in self.diccionarioRun.items():
+				#print(str(i[0])+': '+str(i[1].valor))
 		
 	def show(self,depth): ## este show hay que cambiarlo por check
 		print('  '*depth+'USE:')
@@ -97,7 +101,6 @@ class Bloque(Statement):
 		print('  '*depth+'IN:')
 		self.instrucciones.show(depth+1)
 		print('  '*depth+'END')
-		#self.check(self.scope)
 		
 	def check(self,tabla):
 		scope = Alcance(Variable('main'),self.diccionario,tabla)
@@ -120,12 +123,12 @@ class Bloque_Fun(Statement):
 		self.declaraciones=declaraciones
 		self.instrucciones=instrucciones
 		self.diccionario={}
+		self.diccionarioRun={}
 		if self.declaraciones != None:
-			self.diccionario=self.declaraciones.getDict();
+			self.diccionario=self.declaraciones.getDict()
 			self.diccionarioRun = self.declaraciones.getDictRun()
-		#print(self.diccionario)
 		
-	def show(self,depth): ## este show hay que cambiarlo por check
+	def show(self,depth): 
 		print('  '*depth+'USE:')
 		self.declaraciones.show(depth+1)
 		print('  '*depth+'IN:')
@@ -329,12 +332,29 @@ class ListasSt_Dcl(Statement):
 					exit(3)
 		return self.IdValor
 	
-	#def getDictRun(self):
-		#self.clave =self.AnStatement.getValor()
-		#self.IdValor[self.clave]=self.AnStatement.run(pila)
-		#if self.ManyStatements != None:
-			#self.Aux = self.ManyStatements.getDictRun(pila)
-		#return self.IdValor
+	def getDictRun(self):
+		self.clave =self.AnStatement.getValor()
+		#print(self.AnStatement.run())
+		tipo=self.AnStatement.getTipo()
+		if isinstance(tipo,TNum):
+			self.IdValor[self.clave]=TNum(0)
+		elif isinstance(tipo,TBool):
+			self.IdValor[self.clave]=TBool(False)
+		elif isinstance(tipo,TMatrix):
+			#print(tipo.getTamCol())
+			#print(tipo.getTamFila())
+			col=int(tipo.getTamCol())
+			fila=int(tipo.getTamFila())
+			matriz=[[TNum(0) for x in range(col)] for x in range(fila)]
+			self.IdValor[self.clave]=TMatrix(fila,col,matriz)
+		else:
+			exit(162)
+		if self.ManyStatements != None:
+			self.Aux = self.ManyStatements.getDictRun()
+			for i in self.Aux:
+				if self.clave != i:
+					self.IdValor[i]=self.Aux[i]
+		return self.IdValor
 	
 	def getParam(self,lista):
 		lista.append(self.AnStatement.getTipo())
@@ -347,7 +367,6 @@ class ListasSt_Dcl(Statement):
 		self.AnStatement.run(pila)
 		if self.ManyStatements != None:
 			self.ManyStatements.run(pila)
-			
 		 
 class LiteralMatricial(Statement):
 	def __init__(self, parametroActual, restoParametros):
@@ -368,8 +387,8 @@ class LiteralMatricial(Statement):
 	def check(self,tabla): 
 		self.NumCol= self.parametroActual.check(tabla)
 		self.NumFilas = self.checkMatriz(1,self.NumCol,tabla)
-		filas = str(self.NumFilas)
-		columnas = str(self.NumCol)
+		filas = self.NumFilas
+		columnas = self.NumCol
 		self.valor = [[0 for x in range(self.NumCol)] for x in range(self.NumFilas)]
 		return TMatrix(filas,columnas,[])
 	
@@ -717,7 +736,6 @@ class OperacionBinariaSRM(OperacionBinaria):
 		#print operandoizq
 		operandoder = self.hijos['operando derecho'].check(tabla)
 		#print operandoder
-		self.run(tabla)
 		return self.equals(operandoizq,operandoder,self.name)
 	
 	def equals(self,izq,der,operador):
@@ -744,18 +762,10 @@ class OperacionBinariaSRM(OperacionBinaria):
 		izq = self.hijos['operando izquierdo'].run(pila)
 		der = self.hijos['operando derecho'].run(pila)
 		if isinstance(izq,str):
-			print('uno')
 			izq = pila.buscar(izq)
-			print(izq)
-			print 'pila'
-			print(pila.locales)
 			
 		if isinstance(der,str):
-			print('dos')
 			der = pila.buscar(der)
-			print(der)
-			der = pila.buscar(der)
-			print(der)
 		
 		if isinstance(izq,TMatrix):
 			mIzq=izq.getValor()
@@ -764,20 +774,20 @@ class OperacionBinariaSRM(OperacionBinaria):
 				mTotal= [[0 for x in range(izq.getTamCol())] for x in range(izq.getTamFila())]
 				for row in range(izq.getTamCol()):
 					for col in range(izq.getTamFila()):
-						mTotal[col][row]=(mIzq[col][row].run(pila) + mDer[col][row].run(pila) )
+						mTotal[col][row]=TNum(mIzq[col][row].run(pila) + mDer[col][row].run(pila) )
 				return TMatrix(izq.getTamFila(),izq.getTamCol(),mTotal)
 			
 			elif self.name=='Resta':
 				mTotal= [[0 for x in range(izq.getTamCol())] for x in range(izq.getTamFila())]
 				for row in range(izq.getTamCol()):
 					for col in range(izq.getTamFila()):
-						mTotal[col][row]=(mIzq[col][row].run(pila) - mDer[col][row].run(pila) )
+						mTotal[col][row]=TNum(mIzq[col][row].run(pila) - mDer[col][row].run(pila) )
 				return TMatrix(izq.getTamFila(),izq.getTamCol(),mTotal)
 			elif self.name=='Multiplicacion': ###### hay que ponerla como es #######
 				mTotal= [[0 for x in range(der.getTamCol())] for x in range(izq.getTamFila())]
 				for row in range(izq.getTamFila()):
 					for x in range(der.getTamCol()):
-						for col in range(der.getTamFila()):
+						for col in range(der.getTamFila()): ######## ToDo res no  es TNum ####
 							mTotal[row][x] += (mIzq[row][col].run(pila) * mDer[col][x].run(pila))
 				return TMatrix(izq.getTamFila(),izq.getTamCol(),mTotal)
 			else:
@@ -785,11 +795,6 @@ class OperacionBinariaSRM(OperacionBinaria):
 			
 		elif isinstance(izq,TNum):
 			if self.name=='Suma':
-				#print(izq.run(pila) + der.run(pila))
-				print('izq')
-				print(izq.run(pila))
-				print('der')
-				print(der.run(pila))
 				return TNum(izq.run(pila) + der.run(pila))
 			elif self.name=='Resta':
 				#print(izq.run(pila) - der.run(pila))
@@ -936,14 +941,8 @@ class Asignar(Expresion):
 	def run(self,pila):
 		var = self.hijos['variable'].run(pila)
 		valor=self.hijos['expresion'].run(pila)
-		print("VAR")
-		print(var)
-		print("VALOR")
-		print(valor)
 		if isinstance(valor,str):
 			valor = pila.buscar(valor)
-			print("VALOR2")
-			print(valor)
 		pila.asignar(var,valor)
 		return valor
 		
@@ -1151,7 +1150,19 @@ class Declaracion(Statement):
 			valor=self.expresion.run(pila)
 			pila.inicializacion(self.nombre.valor,valor)
 			return valor
-		return None
+		else:
+			#Inicializacion por defecto
+			tipo=self.getTipo()
+			if isinstance(tipo,TBool):
+				valor=False
+			elif isinstance(tipo,TNum):
+				valor=0
+			elif isinstance(tipo,TMatrix):
+				print(self.getValor)
+				valor=[[0]]
+			else:
+				exit(123)
+			return valor
 		
 class Type(Statement):
 	def __init__(self,tipo,fila,col):
@@ -1317,9 +1328,9 @@ class TNum(Tipo):
 	tipo = 'Numerico'
 	def __init__(self,valor):
 		self.valor = valor
-		print('Numero:')
-		print(self)
-		print(valor)
+		#print('Numero:')
+		#print(self)
+		#print(valor)
 	def getValor(self):
 		return self.valor
 	def getTipo(self):
@@ -1331,8 +1342,8 @@ class TNum(Tipo):
 	#def getValorN(self):
 		#return Decimal(self.valor)
 	def run(self,pila):
-		print('valor:')
-		print (self.valor)
+		#print('valor:')
+		#print (self.valor)
 		return Decimal(self.valor)
 	def to_str(self):
 		return str(Decimal(self.valor))
@@ -1432,9 +1443,6 @@ class Alcance: #decls se crea al ver un USE o un FOR
 		print(depth+'Simbolos:')
 		depth=' '*(self.nivel+4)
 		for i in self.locales.items():
-			print('kjggk')
-			print(str(i[0]))
-			print(i[1])
 			print(depth+str(i[0])+': '+i[1].toStr())
 		depth=' '*(self.nivel+2)
 		if self.hijos==[]:
@@ -1445,6 +1453,7 @@ class Alcance: #decls se crea al ver un USE o un FOR
 				i.Mostrar()
 	
 	def buscar(self, nombre):
+		print nombre
 		if nombre in self.locales:
 			return self.locales[nombre]
 		elif self.padre != None:
@@ -1454,10 +1463,10 @@ class Alcance: #decls se crea al ver un USE o un FOR
 			exit(4)
 	
 	def inicializacion(self,var,valor):
-		if var in self.locales:
-			self.locales[var]=valor
-		else:
-			exit(256)
+		self.locales[var]=valor
+		#if var in self.locales:
+		#else:
+			#self.locales[var]=valor
 			
 	def asignar(self,var,valor):
 		if var in self.locales:
@@ -1935,4 +1944,5 @@ def Sintaxer(lx, tokens, textoPrograma):
 		
 	yacc.yacc(start='program')
 	yacc.parse(lexer=lx).check(None)
+	#yacc.parse(lexer=lx).run(None)
 	return (error)

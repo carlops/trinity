@@ -89,7 +89,6 @@ if __name__ == '__main__':
 	('COMILLASIMPLE'),
 	('NUMERO'),
 	('ID')]
-	
 	x=Sintaxer(lx,lista, copia)
 	exit(x)
 	
