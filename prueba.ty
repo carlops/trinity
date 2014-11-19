@@ -10,12 +10,15 @@
 function foo(boolean baz, number bar ,matrix(3,2) mar)
 return number
 begin
-	if baz then
-		return bar+42;
+	while bar > 40 do
+		print bar;
+		set bar = bar - 1;
+		return 10;
+		#print baz;
 	end;
 	print baz;
-	print mar;
 	return 27;
+	#print baz,"hey";
 	#return foo(false,2,mar);
 end;
 
@@ -27,7 +30,8 @@ program
 		number d=0;
 		
 	in 
-		foo(true,42,{5,2:3,4:1,7});
-		foo(true,33,{1,2:3,4:8,10});
+		print foo(true,45,{5,2:3,4:1,7}),"hey!";
+		
+		#foo(false,33,{1,2:3,4:8,10});
 	end;
 end; 

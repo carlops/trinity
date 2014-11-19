@@ -15,7 +15,7 @@ import math
 from decimal import *
 import pdb 
 TFunciones = {}
-#pdb.set_trace()
+##pdb.set_trace()
 class Function:
 	def __init__(self,Identificador, parametros, tipo, instrucciones,siguiente):
 		self.Identificador = Identificador
@@ -216,11 +216,13 @@ class ListasSt_Fun(Statement):
 				self.ManyStatements.check(tabla,funcion)
 				
 	def run(self,pila):
-		if self.ManyStatements == None:
-			self.AnStatement.run(pila)
-		else:
-			self.AnStatement.run(pila)
-			self.ManyStatements.run(pila)
+		res= self.AnStatement.run(pila)
+		print self.AnStatement
+		if isinstance(self.AnStatement,Return) or res!=None:
+			#pdb.set_trace()
+			return res
+		if self.ManyStatements != None:
+			return self.ManyStatements.run(pila)
 	
 class ParametrosProyeccion(ListasSt):
 	def check(self, tabla):
@@ -556,10 +558,10 @@ class instruccion_IF_Fun(Statement):
 			cond  = pila.buscar(cond)
 		if cond.getValor():
 			if self.instrucciones != None:
-				self.instrucciones.run(pila)
+				return self.instrucciones.run(pila)
 		else:
 			if self.instruccionesElse != None:
-				self.instruccionesElse.run(pila)
+				return self.instruccionesElse.run(pila)
 			
 class instruccion_FOR_Fun(Statement):
 	def __init__(self,ID,estructura,instrucciones):
@@ -585,10 +587,9 @@ class instruccion_FOR_Fun(Statement):
 			exit(15)
 		if self.instrucciones != None:
 			self.instrucciones.check(scope,funcion)
-		if tabla==None:###########################################################
+		if tabla==None:########################################################### ToDo BORRAR
 			scope.Mostrar()
-			
-			
+		
 	def run(self,pila):
 		scope = Alcance(self.ID,self.diccionario,pila)
 		tmatriz = self.estructura.run(pila)
@@ -601,7 +602,6 @@ class instruccion_FOR_Fun(Statement):
 				scope.asignar(self.ID.getValor(),matriz[x][y])
 				if self.instrucciones != None:
 					self.instrucciones.run(scope)
-		
 	
 class instruccion_WHILE_Fun(Statement):
 	def __init__(self, condicion,instrucciones):
@@ -629,7 +629,10 @@ class instruccion_WHILE_Fun(Statement):
 			
 		while cond.getValor() == True:
 			if self.instrucciones != None:
-				self.instrucciones.run(pila)
+				res=self.instrucciones.run(pila)
+				print "res: " + str(res.getValor())
+				#if res != None:
+					#return res
 			cond = self.condicion.run(pila)
 			if isinstance(cond,str):
 				cond  = pila.buscar(cond)
@@ -687,6 +690,7 @@ class Return(Statement):
 				exit(22)
 				
 	def run(self,pila):
+		#pdb.set_trace()
 		val = self.statement.run(pila)
 		if isinstance(val,str):
 			val = pila.buscar(val)
@@ -1346,11 +1350,13 @@ class LiteralFuncion(Expresion):
 			exit(17)
 			
 	def run(self,pila):
+		#pdb.set_trace()
 		fun = TFunciones[self.Identificador.getValor()]
 		diccionario = {}
 		parametros = fun[0][1:]
 		instrucciones = fun[1]
-		print instrucciones
+		#print parametros
+		#print instrucciones
 		diccionario = self.parametros.run(pila,parametros)
 		scope = Alcance(self.Identificador.getValor(),diccionario,None)
 		return instrucciones.run(scope)
@@ -1868,7 +1874,7 @@ def Sintaxer(lx, tokens, textoPrograma):
 		p[0] = Read(Variable(p[2]))
 		
 	def p_function_statement_PRINT(p):
-		'function_statement : PRINT parametro'
+		'function_statement : PRINT parametros_impresion'
 		p[0] = Print(p[2])
 		
 	def p_function_statement_Assing(p):
