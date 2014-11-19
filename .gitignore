@@ -56,3 +56,12 @@ target/
 # Other
 *.pdf
 *.out
+
+# de trinity
+parsetab.py
+shouldpass/
+shouldfail/
+contexterr/
+trinity
+PruebasManu.py
+
