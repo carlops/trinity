@@ -35,7 +35,7 @@ class Function:
 				lista = self.parametros.getParam([])
 			
 			lista.insert(0,self.tipo.check())
-			TFunciones[self.Identificador.getValor()] = lista
+			TFunciones[self.Identificador.getValor()] = (lista,self.instrucciones)
 		
 	def show(self, depth):
 		print('  '*depth + 'FUNCTION:')
@@ -54,7 +54,7 @@ class Function:
 		if self.parametros != None:
 			self.parametros.check(scope)
 		if self.instrucciones != None:
-			self.instrucciones.check(scope,TFunciones[self.Identificador.getValor()])
+			self.instrucciones.check(scope,TFunciones[self.Identificador.getValor()][0])
 		if tabla==None:
 			scope.Mostrar()
 		self.siguiente.check(None)
@@ -397,7 +397,7 @@ class LiteralMatricial(Statement):
 		
 	def run(self,pila):
 		matriz=[]
-		self.getMatrix(pila,matriz)
+		matriz = self.getMatrix(pila,matriz)
 		#filaActual= self.parametroActual.run(pila)
 		#if not restoParametros== None
 			#filaActual.extend(restoParametros.run(pila))
@@ -685,6 +685,12 @@ class Return(Statement):
 			if filafun != filatipo or colfun != coltipo:
 				print ("Error: dimensiones de la matriz de retorno no concuerdan con las definidas por la funcion")
 				exit(22)
+				
+	def run(self,pila):
+		val = self.statement.run(pila)
+		if isinstance(val,str):
+			val = pila.buscar(val)
+		return val
 		
 #------------------------------------------------------------------
 class Expresion(object):
@@ -1330,7 +1336,7 @@ class LiteralFuncion(Expresion):
 		if not TFunciones.has_key(fun):
 			print("Error: funcion '{}' no declarada".format(fun))
 			exit(16)
-		parametrosFun = TFunciones[fun]
+		parametrosFun = TFunciones[fun][0]
 		if self.parametros != None:
 			return self.parametros.check(tabla,parametrosFun)
 		elif len(parametrosFun)==1 and self.parametros == None:
@@ -1338,6 +1344,16 @@ class LiteralFuncion(Expresion):
 		elif len(parametrosFun)>1 and self.parametros == None:
 			print ("Error: numero de parametros invalido en llamada a funcion")
 			exit(17)
+			
+	def run(self,pila):
+		fun = TFunciones[self.Identificador.getValor()]
+		diccionario = {}
+		parametros = fun[0][1:]
+		instrucciones = fun[1]
+		print instrucciones
+		diccionario = self.parametros.run(pila,parametros)
+		scope = Alcance(self.Identificador.getValor(),diccionario,None)
+		return instrucciones.run(scope)
 	
 class ParametrosFuncion(Expresion):
 	def __init__(self,AnStatement,ManyStatements):
@@ -1364,11 +1380,19 @@ class ParametrosFuncion(Expresion):
 				colparam=param[ind+1].getTamCol()
 				colx=x.getTamCol()
 				
-				if filaparam != filax or colparam != colx:
-					print("Error: invalido pase de parametros en invacion a funcion, matriz proporsionada de dimensiones invalidas")
+				if int(filaparam) != int(filax) or int(colparam) != int(colx):
+					print("Error: invalido pase de parametros en invocacion a funcion, matriz proporsionada de dimensiones invalidas")
 					exit(17)
 					
-		return param[0] 
+		return param[0]
+	
+	def run(self,pila,param):
+		dic = {}
+		lista = []
+		lista = self.getParamRun(lista,pila)
+		for ind,x in enumerate(param):
+			dic[x.getValor().getValor()] = lista[ind]
+		return dic
 	
 		
 	def getParam(self,lista,tabla):
@@ -1377,6 +1401,16 @@ class ParametrosFuncion(Expresion):
 			return lista
 		else:
 			return self.ManyStatements.getParam(lista,tabla)
+
+	def getParamRun(self,lista,pila):
+		val = self.AnStatement.run(pila)
+		if isinstance(val,str):
+			val = pila.buscar(val)
+		lista.append(val)
+		if self.ManyStatements==None:
+			return lista
+		else:
+			return self.ManyStatements.getParamRun(lista,pila)
 		
 	def getSize(self):
 		if self.ManyStatements == None:
@@ -1502,7 +1536,7 @@ class DeclaracionMatriz(Statement):
 			self.Identificador.show(depth)
 		
 	def getTipo(self):
-		return TMatrix(self.fila.valor,self.col.valor,[])
+		return TMatrix(self.fila.valor,self.col.valor,self.Identificador)
 	
 	def getValor(self):
 		return self.Identificador.valor
@@ -1571,7 +1605,7 @@ class ColRow(Statement):
 			self.fila=self.valor
 		elif self.nombre=='Vector Fila':
 			self.col=self.valor
-		return TMatrix(self.fila.valor,self.col.valor,[])
+		return TMatrix(self.fila.valor,self.col.valor,self.valor)
 	
 	def run(self,pila):
 		if self.expresion!=None:
