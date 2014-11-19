@@ -1,17 +1,41 @@
 program   
 	use 
-		row(2) a = {1,2}; 
-		#boolean b = true;
-		#number c=42;
-		number d=1;
+		matrix(3,2) a = {5,2:3,4:1,7}; 
+		boolean b = true;
+		number c=42;
+		number d=0;
 		
 	in 
 		use
 			number c=42;
+			col(2) b = {4:1}; 
 		in
-			print "hola ",c+d, {2,1} + a;
+			#print a*b;
 		end;
-		set d= d+22;
-		print d;
+		set b = false;
+		#print a[1,2] mod 5;
+		#print a;
+		if c==d then
+			#print  a[1,2] .div. {42,43:12,33};
+			print -(-(-(-a))),"hice el IF!";
+		else
+			if not  b then
+				for b in a do
+					use
+						number j = 3;
+					in
+						print "FOREANDO";
+						print b+j;
+					end;
+					print b;
+				end;
+			else
+				while d<4 do
+					print d<4;
+					print "JOJOJO";
+					set d = d+1;
+				end;
+			end;
+		end;
 	end;
 end; 
