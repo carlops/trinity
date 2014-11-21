@@ -1397,10 +1397,21 @@ class LiteralFuncion(Expresion):
 		instrucciones = fun[1]
 		diccionario = self.parametros.run(pila,parametros)
 		scope = Alcance(self.Identificador.getValor(),diccionario,None)
-		res = instrucciones.run(scope)
-		if isinstance(res,tuple):
-			return res[0]
-		return res
+		if instrucciones != None:
+			res = instrucciones.run(scope)
+			if isinstance(res,tuple):
+				return res[0]
+			return res
+		else:
+			if isinstance(fun[0][0],TNum):
+				return TNum(0)
+			elif isinstance(fun[0][0],TBool):
+				return TBool(False)
+			elif isinstance(fun[0][0],TMatrix):
+				fila = int(fun[0][0].getTamFila())
+				col = int(fun[0][0].getTamCol())
+				m = [[TNum(0) for x in range(col)] for x in range(fila)]
+				return TMatrix(fila,col,m)
 	
 class ParametrosFuncion(Expresion):
 	def __init__(self,AnStatement,ManyStatements):
