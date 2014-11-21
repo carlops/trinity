@@ -55,8 +55,8 @@ class Function:
 			self.parametros.check(scope)
 		if self.instrucciones != None:
 			self.instrucciones.check(scope,TFunciones[self.Identificador.getValor()][0])
-		if tabla==None:
-			scope.Mostrar()
+		#if tabla==None:
+			#scope.Mostrar()
 		self.siguiente.check(None)
 		
 class Program:
@@ -106,8 +106,8 @@ class Bloque(Statement):
 			self.declaraciones.check(scope)
 		if self.instrucciones != None:
 			self.instrucciones.check(scope)
-		if tabla==None:
-			scope.Mostrar()
+		#if tabla==None:
+			#scope.Mostrar()
 			
 	def run(self,pila):
 		scope = Alcance(Variable('main'),self.diccionario,pila)
@@ -140,8 +140,8 @@ class Bloque_Fun(Statement):
 			self.declaraciones.check(scope)
 		if self.instrucciones != None:
 			self.instrucciones.check(scope,funcion)
-		if tabla==None:
-			scope.Mostrar()
+		#if tabla==None:
+			#scope.Mostrar()
 		
 	def run(self,pila):
 		scope = Alcance(Variable('fun'),self.diccionario,pila)
@@ -476,8 +476,8 @@ class instruccion_FOR(Statement):
 			exit(15)
 		if self.instrucciones != None:
 			self.instrucciones.check(scope)
-		if tabla==None:##########################################################
-			scope.Mostrar()
+		#if tabla==None:##########################################################
+			#scope.Mostrar()
 			
 	def run(self,pila):
 		scope = Alcance(self.ID,self.diccionario,pila)
@@ -589,8 +589,8 @@ class instruccion_FOR_Fun(Statement):
 			exit(15)
 		if self.instrucciones != None:
 			self.instrucciones.check(scope,funcion)
-		if tabla==None:########################################################### ToDo BORRAR
-			scope.Mostrar()
+		#if tabla==None:########################################################### ToDo BORRAR
+			#scope.Mostrar()
 		
 	def run(self,pila):
 		scope = Alcance(self.ID,self.diccionario,pila)
