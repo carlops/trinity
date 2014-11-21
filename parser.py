@@ -188,7 +188,8 @@ class ListasSt(Statement):
 			else:
 				string +=pila.buscar(actual).to_str()
 		else:
-			string +=actual.to_str()
+			if actual != None:
+				string +=actual.to_str()
 		if self.ManyStatements == None:
 			return string
 		else:
@@ -624,7 +625,8 @@ class instruccion_WHILE_Fun(Statement):
 		if not isinstance(tipo,TBool):
 			print ("Error: invalida condicion de WHILE, esperado tipo 'Booleano' encontrado tipo {}".format(tipo.tipo))
 			exit(14)
-		self.instrucciones.check(tabla,funcion)
+		if self.instrucciones != None:
+			self.instrucciones.check(tabla,funcion)
 		
 	def run(self,pila):
 		cond = self.condicion.run(pila)
@@ -1399,10 +1401,22 @@ class LiteralFuncion(Expresion):
 		scope = Alcance(self.Identificador.getValor(),diccionario,None)
 		if instrucciones != None:
 			res = instrucciones.run(scope)
+			if res == None:
+				if isinstance(fun[0][0],TNum):
+					return TNum(0)
+				elif isinstance(fun[0][0],TBool):
+					return TBool(False)
+				elif isinstance(fun[0][0],TMatrix):
+					fila = int(fun[0][0].getTamFila())
+					col = int(fun[0][0].getTamCol())
+					m = [[TNum(0) for x in range(col)] for x in range(fila)]
+					return TMatrix(fila,col,m)
+			
 			if isinstance(res,tuple):
 				return res[0]
 			return res
-		else:
+		
+		if instrucciones == None:
 			if isinstance(fun[0][0],TNum):
 				return TNum(0)
 			elif isinstance(fun[0][0],TBool):
