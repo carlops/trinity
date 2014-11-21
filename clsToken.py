@@ -14,24 +14,6 @@ class Token(object):
 		self.value = code
 		self.lineno = fila
 		self.lexpos = col
-		
-#class Token(object):
-	#def __ini_(self, fila, col, code):
-		#self.name = self.__class__.__name__
-		#self.fila = fila
-		#self.col = col
-		#self.code = code
-
-#class PLYCompatToken(object):
-	#def __ini_(self, tk):
-		#self.type = 
-		#self.value = code
-		#self.lineno = fila
-		#self.lexpos = col
-	
-	#def __repr__(self):
-		#return self.__class__.__name__
-		#return "<Token: %s %r %d %d>" % (self.type, self.value,self.lineno,self.col)
 
 class PROGRAM(Token):
 	ER=re.compile(r'program\b')

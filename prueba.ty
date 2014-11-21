@@ -1,20 +1,32 @@
-#function foo(number bar, boolean baz)
-#return number
-#begin
-#	if baz then
-#	return 42 + bar;
-#	end;
-#	print baz;
-#	return 27;
+function fib(number n)
+return number
+begin
+	if n == 0 then
+		return 0;
+	end;
+	if n == 1 then
+		return 1;
+	else
+		return fib(n-1) + fib(n-2);
+	end;
+end;
 
 function foo(boolean baz, number bar ,matrix(3,2) mar)
 return number
 begin
-	while bar > 40 do
-		print bar;
-		set bar = bar - 1;
-		return 10;
-		#print baz;
+	if baz then
+		for bar in mar do
+			print bar;
+			while bar > 40 do
+				print bar;
+				set bar = bar - 1;
+				#print baz;
+			end;
+			if bar == 40 then
+				print mar;
+				return fib(10);
+			end;
+		end;
 	end;
 	print baz;
 	return 27;
@@ -27,11 +39,21 @@ program
 		matrix(3,2) a = {5,2:3,4:1,7}; 
 		boolean b = true;
 		number c=42;
-		number d=0;
+		boolean d;
+		number foo = 28;
 		
 	in 
-		print foo(true,45,{5,2:3,4:1,7}),"hey!";
+		print 2+foo(true,45,{5,2:3,46:1,7}),"hey!";
+		print "ahora foo! ", foo;
+		print "FIBONACCI ", fib(10);
+		read d;
+		print d;
 		
 		#foo(false,33,{1,2:3,4:8,10});
 	end;
 end; 
+
+    #        raw = raw_input()
+   #         match = re.match(r'^\s*-?\s*\d+\s*$', raw)
+  #          if match:
+ #               value = int(match.group())

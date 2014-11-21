@@ -217,13 +217,14 @@ class ListasSt_Fun(Statement):
 				
 	def run(self,pila):
 		res= self.AnStatement.run(pila)
-		print self.AnStatement
-		if isinstance(self.AnStatement,Return) or res!=None:
-			#pdb.set_trace()
+		if isinstance(self.AnStatement,Return) or isinstance(res,tuple):
+			if res[1]==True:
+				return res
 			return res
 		if self.ManyStatements != None:
-			return self.ManyStatements.run(pila)
-	
+			p = self.ManyStatements.run(pila)
+			return p
+		
 class ParametrosProyeccion(ListasSt):
 	def check(self, tabla):
 		primer=self.AnStatement.check(tabla)
@@ -558,7 +559,8 @@ class instruccion_IF_Fun(Statement):
 			cond  = pila.buscar(cond)
 		if cond.getValor():
 			if self.instrucciones != None:
-				return self.instrucciones.run(pila)
+				p = self.instrucciones.run(pila)
+				return p
 		else:
 			if self.instruccionesElse != None:
 				return self.instruccionesElse.run(pila)
@@ -601,7 +603,9 @@ class instruccion_FOR_Fun(Statement):
 			for y in range(tmatriz.getTamCol()):
 				scope.asignar(self.ID.getValor(),matriz[x][y])
 				if self.instrucciones != None:
-					self.instrucciones.run(scope)
+					res = self.instrucciones.run(scope)
+					if isinstance(res,tuple):
+						return res
 	
 class instruccion_WHILE_Fun(Statement):
 	def __init__(self, condicion,instrucciones):
@@ -630,9 +634,8 @@ class instruccion_WHILE_Fun(Statement):
 		while cond.getValor() == True:
 			if self.instrucciones != None:
 				res=self.instrucciones.run(pila)
-				print "res: " + str(res.getValor())
-				#if res != None:
-					#return res
+				if isinstance(res,tuple):
+					return res
 			cond = self.condicion.run(pila)
 			if isinstance(cond,str):
 				cond  = pila.buscar(cond)
@@ -650,7 +653,45 @@ class Read(Statement):
 		if isinstance(tipo,TMatrix):
 			print ("Error: invalida operacion con 'read' identificador del tipo 'Matriz'")
 			exit(14)
+			
+	def run(self,pila):
+		iden = self.Identificador.run(pila)
+		if isinstance(iden,str):
+			val = pila.buscar(iden)
+		else:
+			print("Error: invalido uso del comando 'read', una variable debe ser otorgada")
+			exit(139)
+		raw = raw_input()
 		
+		if isinstance(val,TNum):
+			match = re.match(r'(\d+(\.\d+)?)', raw)
+			if match:
+				valor = Decimal(match.group())
+				asig = TNum(valor)
+				pila.asignar(iden,asig)
+				return asig
+			else:
+				print ("Error: invalido valor ingresado, esperado tipo 'Numerico'")
+				exit(140)
+		elif isinstance(val,TBool):
+			matchT = re.match(r'true\b',raw)
+			matchF = re.match(r'false\b',raw)
+			
+			if matchT:
+				asig = TBool(True)
+				pila.asignar(iden,asig)
+				return asig
+			elif matchF:
+				asig = TBool(False)
+				pila.asignar(iden,asig)
+				return asig
+			else:
+				print("Error: invalido valor ingresado, esperado tipo 'Booleano'")
+				exit(141)
+		else:
+			print("Error: invalido valor ingresado, Abortando programa")
+			exit(142)
+				
 class Print(Statement):
 	def __init__(self,parametros):
 		self.parametros = parametros
@@ -694,7 +735,7 @@ class Return(Statement):
 		val = self.statement.run(pila)
 		if isinstance(val,str):
 			val = pila.buscar(val)
-		return val
+		return (val,True)
 		
 #------------------------------------------------------------------
 class Expresion(object):
@@ -1350,16 +1391,16 @@ class LiteralFuncion(Expresion):
 			exit(17)
 			
 	def run(self,pila):
-		#pdb.set_trace()
 		fun = TFunciones[self.Identificador.getValor()]
 		diccionario = {}
 		parametros = fun[0][1:]
 		instrucciones = fun[1]
-		#print parametros
-		#print instrucciones
 		diccionario = self.parametros.run(pila,parametros)
 		scope = Alcance(self.Identificador.getValor(),diccionario,None)
-		return instrucciones.run(scope)
+		res = instrucciones.run(scope)
+		if isinstance(res,tuple):
+			return res[0]
+		return res
 	
 class ParametrosFuncion(Expresion):
 	def __init__(self,AnStatement,ManyStatements):
