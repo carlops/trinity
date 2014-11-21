@@ -15,7 +15,7 @@ import math
 from decimal import *
 import pdb 
 TFunciones = {}
-##pdb.set_trace()
+
 class Function:
 	def __init__(self,Identificador, parametros, tipo, instrucciones,siguiente):
 		self.Identificador = Identificador
@@ -2305,8 +2305,12 @@ def Sintaxer(lx, tokens, textoPrograma):
 			
 	#-----------------------------------------------------------------------
 	def p_proyeccion(p):
-		'expression : expression CORCHETEABRE parametro_proyeccion CORCHETECIERRA'
-		p[0] = Proyeccion(p[1],p[3])
+		'''expression : ID CORCHETEABRE parametro_proyeccion CORCHETECIERRA
+					| LLAVESABRE parametros_matriz LLAVESCIERRA CORCHETEABRE parametro_proyeccion CORCHETECIERRA'''
+		if len(p)==5:
+			p[0] = Proyeccion(Variable(p[1]),p[3])
+		else:
+			p[0] = Proyeccion(p[2],p[5])
 		
 	def p_error(p):
 		if p==None:
