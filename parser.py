@@ -229,29 +229,67 @@ class ListasSt_Fun(Statement):
 class ParametrosProyeccion(ListasSt):
 	def check(self, tabla):
 		primer=self.AnStatement.check(tabla)
+		
+		if isinstance(primer.getValor(),str):
+			match = re.match(r'(\d+\.\d+)', primer.getValor())
+			if match:
+				print("Error: proyeccion matricial, indice de proyeccion no es un numero entero")
+				exit(10)
+		else:
+			if primer.getValor() % 1 != 0:
+				print("Error: proyeccion matricial, indice de proyeccion no es un numero entero")
+				exit(10)
+			
 		if not isinstance(primer,TNum):
 			print('Error: proyeccion matricial, esperado tipo \'Numerico\' y recibido tipo {}'.format(primer.__class__.__name__))
 			exit(10)
-		if int(primer.getValor())<1:
-			print('Error: proyeccion matricial, los indices deben ser mayores que uno')
-			exit(10)
+		if isinstance(primer.getValor(),str):
+			if int(primer.getValor())<1:
+				print('Error: proyeccion matricial, los indices deben ser mayores que uno')
+				exit(10)
 		if self.ManyStatements != None:
 			segundo=self.ManyStatements.check(tabla)
+			if isinstance(segundo.getValor(),str):
+				match = re.match(r'(\d+\.\d+)', segundo.getValor())
+				if match:
+					print("Error: proyeccion matricial, indice de proyeccion no es un numero entero")
+					exit(10)
+			else:
+				if segundo.getValor() % 1 != 0:
+					print("Error: proyeccion matricial, indice de proyeccion no es un numero entero")
+					exit(10)
+					
 			if not isinstance(segundo,TNum):
 				print('Error: proyeccion matricial, esperado tipo \'Numerico\' y recibido tipo {}'.format(segundo.__class__.__name__))
 				exit(10)
-			if int(segundo.getValor())<1:
-				print('Error: proyeccion matricial, los indices deben ser mayores que uno')
-				exit(10)
+			if isinstance(segundo.getValor(),str):
+				if int(segundo.getValor())<1:
+					print('Error: proyeccion matricial, los indices deben ser mayores que uno')
+					exit(10)
 		else:
 			segundo = None
 			
 		return (primer, segundo)
 	
 	def run(self,pila):
-		primer = self.AnStatement.run(pila).getValor()
+		primer = self.AnStatement.run(pila)
+		if isinstance(primer,str):
+			primer = pila.buscar(primer)
+		
+		primer = primer.getValor()
+		
+		if primer % 1 != 0:
+			print("Error: proyeccion matricial, indice de proyeccion no es un numero entero")
+			exit(110)
+			
 		if self.ManyStatements != None:
-			segundo = self.ManyStatements.run(pila).getValor()
+			segundo = self.ManyStatements.run(pila)
+			if isinstance(segundo,str):
+				segundo = pila.buscar(segundo)
+			segundo = segundo.getValor()
+			if segundo % 1 != 0:
+				print("Error: proyeccion matricial, indice de proyeccion no es un numero entero")
+				exit(110)
 		else:		
 			segundo = None
 		return (primer,segundo)
@@ -829,10 +867,11 @@ class Proyeccion(Expresion):
 		error=False
 		fila=tipoE.getTamFila()
 		col =tipoE.getTamCol()
+		
 		if parametros[1]==None:
-			if col==1 and fila<parametros[0]:
+			if col==1 and fila<int(parametros[0].getValor()):
 				error=True
-			elif fila==1 and col<parametros[0]:
+			elif fila==1 and col<int(parametros[0].getValor()):
 				error=True
 		else:
 			if fila<int(parametros[0].getValor()) or col<int(parametros[1].getValor()):
@@ -932,13 +971,12 @@ class OperacionBinariaCruzada(OperacionBinaria):
 		izq = self.hijos['operando izquierdo'].run(pila)
 		der = self.hijos['operando derecho'].run(pila)
 		
-		if isinstance(izq,str) and isinstance(der,TNum):
-			matriz = pila.buscar(izq)
-			num = der.getValor()
-		elif isinstance(der,str) and isinstance(izq,TNum):
-			matriz = pila.buscar(der)
-			num = izq.getValor()
-		elif isinstance(izq,TMatrix) and isinstance(der,TNum):
+		if isinstance(izq,str):
+			izq  = pila.buscar(izq)
+		if isinstance(der,str):
+			der = pila.buscar(der)
+		
+		if isinstance(izq,TMatrix) and isinstance(der,TNum):
 			matriz = izq
 			num = der.getValor()
 		elif isinstance(der,TMatrix) and isinstance(izq,TNum):
@@ -1186,6 +1224,7 @@ class OperacionBinariaIgualdad(OperacionBinaria):
 			exit(123)
 		
 class OperacionBinariaOpBool(OperacionBinaria):
+	
 	def check(self,tabla):
 		operandoizq = self.hijos['operando izquierdo'].check(tabla)
 		operandoder = self.hijos['operando derecho'].check(tabla)
@@ -1196,6 +1235,32 @@ class OperacionBinariaOpBool(OperacionBinaria):
 			print ("Error: las expresiones  {} y {} no pueden ser operadas con el operador {} ".format(izq.tipo,der.tipo,operador))
 			exit(12)
 		return operandoizq
+	
+	def run(self,pila):
+		izq = self.hijos['operando izquierdo'].run(pila)
+		
+		if isinstance(izq,str):
+			izq = pila.buscar(izq)
+			
+		if self.name == 'AND':
+			if not izq.getValor():
+				return TBool(False)
+			else:
+				der = self.hijos['operando derecho'].run(pila)
+				if isinstance(der,str):
+					der = pila.buscar(der)
+				return TBool(der.getValor())
+			
+		elif self.name == 'OR':
+			if izq.getValor():
+				return TBool(True)
+			else:
+				der = self.hijos['operando derecho'].run(pila)
+				if isinstance(der,str):
+					der = pila.buscar(der)
+				return TBool(der.getValor())
+		else:
+			exit(102)
 		
 class Asignar(Expresion):
 	def __init__(self,variable,expresion):
@@ -1233,7 +1298,22 @@ class Asignar(Expresion):
 		valor=self.hijos['expresion'].run(pila)
 		if isinstance(valor,str):
 			valor = pila.buscar(valor)
-		pila.asignar(var,valor)
+		if isinstance(valor,TNum):
+			pila.asignar(var,TNum(valor.getValor()))
+			
+		elif isinstance(valor,TBool):
+			pila.asignar(var,TBool(valor.getValor()))
+			
+		elif isinstance(valor,TMatrix):
+			m = valor.getValor()
+			fila  = valor.getTamFila()
+			col = valor.getTamCol()
+			mTotal = [[0 for x in range(col)] for x in range(fila)]
+			for i in range(fila):
+				for j in range(col):
+					mTotal[i][j] = TNum(m[i][j].getValor())			
+			pila.asignar(var,TMatrix(fila,col,mTotal))
+			
 		return valor
 		
 class Asignar_Matriz_Elem(Statement):
@@ -1326,7 +1406,7 @@ class Transpuesta(Expresion):
 		valor = matriz.getValor()
 		for i in range(matriz.getTamFila()):
 			for j in range(matriz.getTamCol()):
-				mTotal[j][i] = valor[i][j]
+				mTotal[j][i] = TNum(valor[i][j].getValor())
 		return TMatrix(matriz.getTamCol(),matriz.getTamFila(),mTotal)
 		
 		
@@ -1397,7 +1477,8 @@ class LiteralFuncion(Expresion):
 		diccionario = {}
 		parametros = fun[0][1:]
 		instrucciones = fun[1]
-		diccionario = self.parametros.run(pila,parametros)
+		if self.parametros != None:
+			diccionario = self.parametros.run(pila,parametros)
 		scope = Alcance(self.Identificador.getValor(),diccionario,None)
 		if instrucciones != None:
 			res = instrucciones.run(scope)
@@ -1523,6 +1604,8 @@ class Declaracion(Statement):
 	def run(self,pila):
 		if self.expresion!=None:
 			valor=self.expresion.run(pila)
+			if isinstance(valor,str):
+				valor = pila.buscar(valor)
 			pila.inicializacion(self.nombre.valor,valor)
 			return valor
 		else:
@@ -1533,7 +1616,6 @@ class Declaracion(Statement):
 			elif isinstance(tipo,TNum):
 				valor=0
 			elif isinstance(tipo,TMatrix):
-				print(self.getValor)
 				valor=[[0]]
 			else:
 				exit(123)
@@ -1640,7 +1722,18 @@ class DeclaracionMatriz(Statement):
 	def run(self,pila):
 		if self.expresion!=None:
 			valor=self.expresion.run(pila)
-			pila.inicializacion(self.Identificador.valor,valor)
+			if isinstance(valor,str):
+				valor = pila.buscar(valor)
+				
+			m = valor.getValor()
+			fila  = valor.getTamFila()
+			col = valor.getTamCol()
+			mTotal = [[0 for x in range(col)] for x in range(fila)]
+			for i in range(fila):
+				for j in range(col):
+					mTotal[i][j] = TNum(m[i][j].getValor())
+					
+			pila.inicializacion(self.Identificador.valor,TMatrix(fila,col,mTotal))
 			return valor
 		return None
 		
@@ -1838,9 +1931,6 @@ class Alcance: #decls se crea al ver un USE o un FOR
 	
 	def inicializacion(self,var,valor):
 		self.locales[var]=valor
-		#if var in self.locales:
-		#else:
-			#self.locales[var]=valor
 			
 	def asignar(self,var,valor):
 		if var in self.locales:
